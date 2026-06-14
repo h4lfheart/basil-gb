@@ -13,33 +13,36 @@ module mmu (
     input logic clk,
     input logic rst,
     bus.child_port cpu_bus,
-    bus.parent_port boot_rom_bus
+    bus.parent_port boot_rom_bus,
+    bus.parent_port vram_bus
 );
 
     logic cs_boot_rom;
+    logic cs_vram;
 
     always_comb begin
         cs_boot_rom = cpu_bus.addr inside {[BOOT_ROM_START:BOOT_ROM_END]};
+        cs_vram = cpu_bus.addr inside{[VRAM_START:VRAM_END]};
     end
 
     `DEF_BUS(boot_rom_bus, cs_boot_rom)
+    `DEF_BUS(vram_bus, cs_vram)
 
     always_comb begin
         cpu_bus.data_rd = 'hFF;
 
         if (cpu_bus.rd) begin
-            if (cs_boot_rom)
-                cpu_bus.data_rd = boot_rom_bus.data_rd;
-            else
-                $display("Invalid read at 0x%0h", cpu_bus.addr);
+            if (cs_boot_rom) cpu_bus.data_rd = boot_rom_bus.data_rd;
+            else if (cs_vram) cpu_bus.data_rd = vram_bus.data_rd;
+            else $display("Invalid read at 0x%0h", cpu_bus.addr);
         end
     end
 
     always_comb begin
         if (cpu_bus.wr) begin
             if (cs_boot_rom);
-            else
-                $display("Invalid write at 0x%0h", cpu_bus.addr);
+            else if (cs_vram);
+            else $display("Invalid write at 0x%0h", cpu_bus.addr);
         end
     end
 

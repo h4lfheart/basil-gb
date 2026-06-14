@@ -23,7 +23,6 @@ module cpu(
     control_t ctrl;
 
     logic cb_prefix;
-
     `ON_TCYCLE(T3) begin
         if (ctrl.set_cb_prefix)
             cb_prefix <= 1;
@@ -31,8 +30,22 @@ module cpu(
             cb_prefix <= 0;
     end
 
+    logic CC;
+    logic ctrlcc;
+    assign ctrlcc = ctrl.cc;
+    always_comb begin
+        case (ctrl.cc)
+            CC_NZ: CC <= ~F.z;
+            CC_Z: CC <= F.z;
+            CC_NC: CC <= ~F.c;
+            CC_C: CC <= F.c;
+        endcase
+    end
+
+
     cpu_control control(
         .IR(IR),
+        .CC(CC),
         .mcycle(mcycle),
         .cb_prefix(cb_prefix),
         .ctrl(ctrl)
@@ -46,6 +59,7 @@ module cpu(
     always_comb begin
         case (ctrl.bus_rd_src)
             BUS_RD_SRC_PC: bus_addr = PC;
+            BUS_RD_SRC_WZ: bus_addr = WZ;
         endcase
 
         case (ctrl.bus_wr_src)
@@ -79,8 +93,11 @@ module cpu(
     // Registers
     logic [15:0] PC;
     logic [7:0] IR;
+    
     logic [7:0] Z;
     logic [7:0] W;
+    logic [15:0] WZ;
+    assign WZ = {W, Z};
 
     logic [7:0] A, B, C, D, E, H, L;
     logic [15:0] SP;
@@ -129,6 +146,14 @@ module cpu(
         endcase
     endfunction
 
+    function automatic logic [15:0] wb_sel(wb_src_t src);
+        case (src)
+            WB_SRC_WZ: return WZ;
+            WB_SRC_ALU: return alu_result;
+            WB_SRC_IDU: return idu_out;
+        endcase
+    endfunction
+
     always_comb begin
         wr_r8 = 0;
         wr_reg_r8 = 0;
@@ -142,14 +167,15 @@ module cpu(
         wr_data_flags = 0;
 
         case (ctrl.wb_dst)
+            WB_DST_R8: begin
+                wr_r8 = 1;
+                wr_reg_r8 = ctrl.wb_r8;
+                wr_data_r8 = wb_sel(ctrl.wb_src);
+            end
             WB_DST_R16: begin
                 wr_r16 = 1;
                 wr_reg_r16 = ctrl.wb_r16;
-                case (ctrl.wb_src) // TODO WB sel auto func
-                    WB_SRC_WZ: wr_data_r16 = {W, Z};
-                    WB_SRC_ALU: wr_data_r16 = alu_result;
-                    WB_SRC_IDU: wr_data_r16 = idu_out;
-                endcase
+                wr_data_r16 = wb_sel(ctrl.wb_src);
             end
         endcase
 
@@ -185,22 +211,29 @@ module cpu(
     logic [7:0] alu_result;
     flags_t alu_flags;
 
-    always_comb begin
-        case (ctrl.alu_a_src)
-            ALU_SRC_R8: alu_a = r8_sel(ctrl.alu_a_r8);
+    function automatic logic [7:0] alu_src_sel(alu_src_t src, r8_t r8);
+        case (src)
+            ALU_SRC_R8: return r8_sel(r8);
+            ALU_SRC_Z: return Z;
+            ALU_SRC_PCL: return PC[7:0];
         endcase
-    end
+    endfunction
 
     always_comb begin
-        case (ctrl.alu_b_src)
-            ALU_SRC_R8: alu_a = r8_sel(ctrl.alu_a_r8);
-        endcase
+       alu_a = alu_src_sel(ctrl.alu_a_src, ctrl.alu_a_r8);
+       alu_b = alu_src_sel(ctrl.alu_b_src, ctrl.alu_b_r8);
     end
+
+    `ON_TCYCLE(T3)
+        case (ctrl.alu_dst)
+            ALU_DST_Z: Z <= alu_result;
+        endcase
 
     cpu_alu alu(
         .action(ctrl.alu_action),
         .a(alu_a),
         .b(alu_b),
+        .bit_idx(ctrl.alu_bit),
         .flags_in(F),
         .result(alu_result),
         .flags(alu_flags)
@@ -215,6 +248,12 @@ module cpu(
         case (ctrl.idu_adj)
             IDU_ADJ_INC: idu_adj = 'sh1;
             IDU_ADJ_DEC: idu_adj = -'sh1;
+            IDU_ADJ_CARRY: begin
+                logic carry_out;
+                carry_out = (9'(Z) + 9'(PC[7:0])) > 9'hFF;
+                idu_adj = (carry_out == Z[7]) ? 2'sd0
+                        : carry_out ? 2'sd1 : -2'sd1;
+            end
         endcase
     end
 
@@ -222,12 +261,15 @@ module cpu(
         case (ctrl.idu_src)
             IDU_SRC_PC: idu_in = PC;
             IDU_SRC_R16: idu_in = r16_sel(ctrl.idu_src_r16);
+            IDU_SRC_WZ: idu_in = WZ;
+            IDU_SRC_PCH: idu_in = PC[15:8];
         endcase
     end
 
     `ON_TCYCLE(T3)
         case (ctrl.idu_dst)
             IDU_DST_PC: PC <= idu_out;
+            IDU_DST_W: W <= idu_out;
         endcase
     
     cpu_idu idu(

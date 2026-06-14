@@ -1,5 +1,6 @@
 module cpu_control(
     input logic [7:0] IR,
+    input logic CC,
     input mcycle_t mcycle,
     input logic cb_prefix,
     output control_t ctrl
@@ -12,7 +13,13 @@ module cpu_control(
     assign r8_dst_field = IR[5:3];
 
     logic [2:0] r8_src_field;
-    assign r8_dst_field = IR[2:0];
+    assign r8_src_field = IR[2:0];
+
+    logic [2:0] bit_field;
+    assign bit_field = IR[5:3];
+
+    logic [1:0] cc_field;
+    assign cc_field = IR[4:3];
     
     task ctrl_pc_read(bus_rd_dst_t dst);
         ctrl.bus_rd = 1;
@@ -51,7 +58,7 @@ module cpu_control(
         ctrl.alu_action = action;
         ctrl.alu_a_src = ALU_SRC_R8;
         ctrl.alu_a_r8 = r8_t'(r8_src_field);
-        ctrl.alu_bit = IR[5:3];
+        ctrl.alu_bit = bit_field;
 
         if (action != ALU_ACTION_BIT) begin
             ctrl.wb_src = WB_SRC_ALU;
@@ -72,8 +79,42 @@ module cpu_control(
                     ctrl_fetch();
                 end
 
-                `OP_XOR_R: begin
-                    ctrl_alu_a(ALU_ACTION_XOR);
+                `OP_JR_CC_E: begin
+                    ctrl.cc = cc_t'(cc_field);
+
+                    case (mcycle)
+                        M0: begin    
+                            ctrl_pc_read(BUS_RD_DST_Z);
+                        end
+                        M1: begin
+                            if (CC) begin
+                                ctrl.alu_action = ALU_ACTION_ADD;
+                                ctrl.alu_a_src = ALU_SRC_PCL;
+                                ctrl.alu_b_src = ALU_SRC_Z;
+                                ctrl.alu_dst = ALU_DST_Z;
+                                ctrl.wb_flags = 0;
+
+                                ctrl.idu_adj = IDU_ADJ_CARRY;
+                                ctrl.idu_src = IDU_SRC_PCH;
+                                ctrl.idu_dst = IDU_DST_W;
+
+                            end
+                            else begin
+                                ctrl_fetch();
+                            end
+                        end
+                        M2: begin
+                            ctrl.fetch_cycle = 1;
+
+                            ctrl.bus_rd = 1;
+                            ctrl.bus_rd_src = BUS_RD_SRC_WZ;
+                            ctrl.bus_rd_dst = BUS_RD_DST_IR;
+
+                            ctrl.idu_adj = IDU_ADJ_INC;
+                            ctrl.idu_src = IDU_SRC_WZ;
+                            ctrl.idu_dst = IDU_DST_PC;
+                        end
+                    endcase
                 end
 
                 `OP_LD_RR_NN: begin
@@ -120,6 +161,10 @@ module cpu_control(
                             ctrl_fetch();
                         end
                     endcase
+                end
+                
+                `OP_XOR_R: begin
+                    ctrl_alu_a(ALU_ACTION_XOR);
                 end
 
                 `OP_CB: begin

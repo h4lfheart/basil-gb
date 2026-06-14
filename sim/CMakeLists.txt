@@ -25,6 +25,7 @@ set(SV_SOURCES
 
     ../rtl/mem/mem_types.sv
     ../rtl/mem/mem_boot_rom.sv
+    ../rtl/mem/mem_vram.sv
     ../rtl/mem/mmu.sv
 
     ../rtl/gameboy.sv

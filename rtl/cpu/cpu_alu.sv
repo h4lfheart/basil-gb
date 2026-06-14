@@ -23,8 +23,6 @@ module cpu_alu(
             end
 
             ALU_ACTION_BIT: begin
-                result = a;
-
                 flags.z = ~a[bit_idx];
                 flags.n = 0;
                 flags.h = 1;
@@ -43,6 +41,14 @@ module cpu_alu(
                 result[bit_idx] = 1;
 
                 flags = flags_in;
+            end
+
+            ALU_ACTION_ADD: begin
+                {flags.c, result} = {1'b0, a} + {1'b0, b};
+
+                flags.z = (result == 0);
+                flags.n = 0;
+                flags.h = ((a[3:0] + b[3:0]) > 4'hF);
             end
         endcase
     end

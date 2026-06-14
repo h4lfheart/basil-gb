@@ -16,11 +16,19 @@ module gameboy(
         .bus(boot_rom_bus)
     );
 
+    bus vram_bus();
+    mem_vram vram(
+        .clk(clk),
+        .rst(rst),
+        .bus(vram_bus)
+    );
+
     mmu mmu(
         .clk(clk),
         .rst(rst),
         .cpu_bus(cpu_bus),
-        .boot_rom_bus(boot_rom_bus)
+        .boot_rom_bus(boot_rom_bus),
+        .vram_bus(vram_bus)
     );
 
 endmodule

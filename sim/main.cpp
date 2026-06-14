@@ -18,18 +18,17 @@ double sc_time_stamp() {
     return clk_time;
 }
 
-void clock_cycle(const std::unique_ptr<Vgameboy>& gb, const std::unique_ptr<VerilatedVcdC>& vcd) {
+void clock_cycle(const std::unique_ptr<Vgameboy>& gb, const std::unique_ptr<VerilatedVcdC>& vcd, uint64_t trace_start_time) {
     gb->clk = 1;
     gb->eval();
-    if (vcd) vcd->dump(clk_time);
+    if (vcd && clk_time >= trace_start_time) vcd->dump(clk_time - trace_start_time);
     clk_time++;
 
     gb->clk = 0;
     gb->eval();
-    if (vcd) vcd->dump(clk_time);
+    if (vcd && clk_time >= trace_start_time) vcd->dump(clk_time - trace_start_time);
     clk_time++;
 }
-
 
 template <typename T>
 void load_rom(const std::string& path, T& mem, size_t mem_size) {
@@ -63,6 +62,11 @@ int main(int argc, char **argv)
     arguments.add_argument("--trace")
         .help("Path to write a VCD trace file.");
 
+    arguments.add_argument("--trace-start")
+        .help("Cycle time at which to start tracing.")
+        .scan<'u', uint64_t>()
+        .default_value(static_cast<uint64_t>(0));
+
     try {
         arguments.parse_args(argc, argv);
     }
@@ -74,6 +78,7 @@ int main(int argc, char **argv)
 
     auto bootrom_path = arguments.get<std::string>("bootrom");
     auto rom_path = arguments.get<std::string>("rom");
+    auto trace_start_time = arguments.get<uint64_t>("--trace-start");
 
     const auto ctx = std::make_unique<VerilatedContext>();
     ctx->commandArgs(argc, argv);
@@ -91,16 +96,18 @@ int main(int argc, char **argv)
     }
 
     gb->rst = 1;
-    clock_cycle(gb, vcd);
-    clock_cycle(gb, vcd);
+    clock_cycle(gb, vcd, trace_start_time);
+    clock_cycle(gb, vcd, trace_start_time);
 
     gb->rst = 0;
-    clock_cycle(gb, vcd);
+    clock_cycle(gb, vcd, trace_start_time);
 
     while (!ctx->gotFinish()) {
-        clock_cycle(gb, vcd);
+        clock_cycle(gb, vcd, trace_start_time);
     }
 
-    if (vcd != nullptr) 
+    if (vcd != nullptr)
         vcd->close();
+
+    std::cout << "Elapsed cycles: " << (clk_time) << std::endl;
 }

@@ -2,10 +2,11 @@ package cpu_types;
 
     `define OP_NOP 'b00000000
 
-    `define OP_XOR_R 'b10101???
-
+    `define OP_JR_CC_E 'b001??000
     `define OP_LD_RR_NN 'b00??0001
     `define OP_LD_RR_MEM_A 'b00??0010
+
+    `define OP_XOR_R 'b10101???
 
     `define OP_CB 'b11001011
 
@@ -31,7 +32,8 @@ package cpu_types;
 
     typedef enum {
         BUS_RD_SRC_NONE,
-        BUS_RD_SRC_PC
+        BUS_RD_SRC_PC,
+        BUS_RD_SRC_WZ
     } bus_rd_src_t;
     
     typedef enum {
@@ -54,18 +56,22 @@ package cpu_types;
     typedef enum {
         ID_ADJ_NONE,
         IDU_ADJ_INC,
-        IDU_ADJ_DEC
+        IDU_ADJ_DEC,
+        IDU_ADJ_CARRY
     } idu_adj_t;
 
     typedef enum {
         IDU_SRC_NONE,
         IDU_SRC_PC,
-        IDU_SRC_R16
+        IDU_SRC_R16,
+        IDU_SRC_WZ,
+        IDU_SRC_PCH
     } idu_src_t;
     
     typedef enum {
         IDU_DST_NONE,
-        IDU_DST_PC
+        IDU_DST_PC,
+        IDU_DST_W
     } idu_dst_t;
 
     typedef enum {
@@ -86,13 +92,21 @@ package cpu_types;
         ALU_ACTION_XOR,
         ALU_ACTION_BIT,
         ALU_ACTION_RES,
-        ALU_ACTION_SET
+        ALU_ACTION_SET,
+        ALU_ACTION_ADD
     } alu_action_t;
 
     typedef enum {
         ALU_SRC_NONE,
-        ALU_SRC_R8
+        ALU_SRC_R8,
+        ALU_SRC_Z,
+        ALU_SRC_PCL
     } alu_src_t;
+
+    typedef enum {
+        ALU_DST_NONE,
+        ALU_DST_Z
+    } alu_dst_t;
 
     typedef enum logic [2:0] {
         R8_B = 'd0,
@@ -162,6 +176,14 @@ package cpu_types;
         logic c; // carry
         logic [3:0] unused;
     } flags_t;
+
+    
+    typedef enum logic [1:0] {
+        CC_NZ = 2'd0,
+        CC_Z = 2'd1,
+        CC_NC = 2'd2,
+        CC_C = 2'd3
+    } cc_t;
     
     typedef struct packed {
 
@@ -197,10 +219,12 @@ package cpu_types;
         r8_t alu_a_r8;
         r8_t alu_b_r8;
         logic [2:0] alu_bit;
+        alu_dst_t alu_dst;
 
         // Misc.
         logic fetch_cycle;
         logic set_cb_prefix;
+        cc_t cc;
 
     } control_t;
 endpackage
