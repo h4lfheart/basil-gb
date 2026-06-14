@@ -7,6 +7,11 @@ package cpu_types;
     `define OP_LD_RR_NN 'b00??0001
     `define OP_LD_RR_MEM_A 'b00??0010
 
+    `define OP_CB 'b11001011
+
+    `define OP_CB_BIT 'b01??????
+    `define OP_CB_RES 'b10??????
+    `define OP_CB_SET 'b11??????
 
     typedef enum logic [1:0] {
         T0 = 'd0,
@@ -78,7 +83,10 @@ package cpu_types;
 
     typedef enum {
         ALU_ACTION_NONE,
-        ALU_ACTION_XOR
+        ALU_ACTION_XOR,
+        ALU_ACTION_BIT,
+        ALU_ACTION_RES,
+        ALU_ACTION_SET
     } alu_action_t;
 
     typedef enum {
@@ -188,9 +196,11 @@ package cpu_types;
         alu_src_t alu_b_src;
         r8_t alu_a_r8;
         r8_t alu_b_r8;
+        logic [2:0] alu_bit;
 
         // Misc.
         logic fetch_cycle;
+        logic set_cb_prefix;
 
     } control_t;
 endpackage

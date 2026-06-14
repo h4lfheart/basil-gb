@@ -21,9 +21,20 @@ module cpu(
 
     // Control
     control_t ctrl;
+
+    logic cb_prefix;
+
+    `ON_TCYCLE(T3) begin
+        if (ctrl.set_cb_prefix)
+            cb_prefix <= 1;
+        else if (ctrl.fetch_cycle)
+            cb_prefix <= 0;
+    end
+
     cpu_control control(
         .IR(IR),
         .mcycle(mcycle),
+        .cb_prefix(cb_prefix),
         .ctrl(ctrl)
     );
 
