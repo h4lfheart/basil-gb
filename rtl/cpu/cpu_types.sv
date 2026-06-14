@@ -3,8 +3,19 @@ package cpu_types;
     `define OP_NOP 'b00000000
 
     `define OP_JR_CC_E 'b001??000
+
+    `define OP_INC_R 'b00???100
+
+    `define OP_LD_R_R 'b01??????
+    `define OP_HALT 'b01110110
+    `define OP_LD_R_N 'b00???110
+
     `define OP_LD_RR_NN 'b00??0001
     `define OP_LD_RR_MEM_A 'b00??0010
+    `define OP_LD_A_RR_MEM 'b00??1010
+
+    `define OP_LDH_N_A 'b11100000
+    `define OP_LDH_C_A 'b11100010
 
     `define OP_XOR_R 'b10101???
 
@@ -33,7 +44,8 @@ package cpu_types;
     typedef enum {
         BUS_RD_SRC_NONE,
         BUS_RD_SRC_PC,
-        BUS_RD_SRC_WZ
+        BUS_RD_SRC_WZ,
+        BUS_RD_SRC_R16
     } bus_rd_src_t;
     
     typedef enum {
@@ -50,7 +62,9 @@ package cpu_types;
     
     typedef enum {
         BUS_WR_DST_NONE,
-        BUS_WR_DST_R16
+        BUS_WR_DST_R16,
+        BUS_WR_DST_C,
+        BUS_WR_DST_Z
     } bus_wr_dst_t;
 
     typedef enum {
@@ -89,11 +103,16 @@ package cpu_types;
 
     typedef enum {
         ALU_ACTION_NONE,
-        ALU_ACTION_XOR,
         ALU_ACTION_BIT,
         ALU_ACTION_RES,
         ALU_ACTION_SET,
-        ALU_ACTION_ADD
+
+        ALU_ACTION_INC,
+
+        ALU_ACTION_ADD,
+        ALU_ACTION_XOR,
+
+        ALU_ACTION_LD
     } alu_action_t;
 
     typedef enum {
@@ -191,6 +210,7 @@ package cpu_types;
         logic bus_rd;
         bus_rd_src_t bus_rd_src;
         bus_rd_dst_t bus_rd_dst;
+        r16_t bus_rd_src_r16;
 
         logic bus_wr;
         bus_wr_src_t bus_wr_src;

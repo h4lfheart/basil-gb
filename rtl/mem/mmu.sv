@@ -14,18 +14,23 @@ module mmu (
     input logic rst,
     bus.child_port cpu_bus,
     bus.parent_port boot_rom_bus,
+    bus.parent_port cart_bus,
     bus.parent_port vram_bus
 );
+    logic [7:0] BANK = 'h00;
 
     logic cs_boot_rom;
+    logic cs_cart;
     logic cs_vram;
 
     always_comb begin
-        cs_boot_rom = cpu_bus.addr inside {[BOOT_ROM_START:BOOT_ROM_END]};
+        cs_boot_rom = (BANK == 'h00) && cpu_bus.addr inside {[BOOT_ROM_START:BOOT_ROM_END]};
+        cs_cart = !cs_boot_rom && cpu_bus.addr inside {[CART_ROM_START:CART_ROM_END], [CART_RAM_START:CART_RAM_END]};
         cs_vram = cpu_bus.addr inside{[VRAM_START:VRAM_END]};
     end
 
     `DEF_BUS(boot_rom_bus, cs_boot_rom)
+    `DEF_BUS(cart_bus, cs_cart)
     `DEF_BUS(vram_bus, cs_vram)
 
     always_comb begin
@@ -33,6 +38,7 @@ module mmu (
 
         if (cpu_bus.rd) begin
             if (cs_boot_rom) cpu_bus.data_rd = boot_rom_bus.data_rd;
+            else if (cs_cart) cpu_bus.data_rd = cart_bus.data_rd;
             else if (cs_vram) cpu_bus.data_rd = vram_bus.data_rd;
             else $display("Invalid read at 0x%0h", cpu_bus.addr);
         end
@@ -42,6 +48,7 @@ module mmu (
         if (cpu_bus.wr) begin
             if (cs_boot_rom);
             else if (cs_vram);
+            else if (cs_cart);
             else $display("Invalid write at 0x%0h", cpu_bus.addr);
         end
     end

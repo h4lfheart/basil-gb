@@ -14,6 +14,8 @@ find_package(verilator HINTS ${VERILATOR_ROOT} REQUIRED)
 set(SV_SOURCES
     ../rtl/bus.sv
 
+    ../rtl/cart/cart.sv
+
     ../rtl/cpu/cpu_types.sv
     ../rtl/cpu/cpu_bus_controller.sv
     ../rtl/cpu/cpu_regfile.sv

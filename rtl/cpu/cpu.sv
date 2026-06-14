@@ -31,8 +31,6 @@ module cpu(
     end
 
     logic CC;
-    logic ctrlcc;
-    assign ctrlcc = ctrl.cc;
     always_comb begin
         case (ctrl.cc)
             CC_NZ: CC <= ~F.z;
@@ -60,6 +58,7 @@ module cpu(
         case (ctrl.bus_rd_src)
             BUS_RD_SRC_PC: bus_addr = PC;
             BUS_RD_SRC_WZ: bus_addr = WZ;
+            BUS_RD_SRC_R16: bus_addr = r16_sel(ctrl.bus_rd_src_r16);
         endcase
 
         case (ctrl.bus_wr_src)
@@ -68,6 +67,8 @@ module cpu(
 
         case (ctrl.bus_wr_dst)
             BUS_WR_DST_R16: bus_addr = r16_sel(ctrl.bus_wr_dst_r16);
+            BUS_WR_DST_C: bus_addr = {'hFF, C};
+            BUS_WR_DST_Z: bus_addr = {'hFF, Z};
         endcase
     end
 

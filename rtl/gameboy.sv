@@ -8,6 +8,13 @@ module gameboy(
         .rst(rst),
         .bus(cpu_bus)
     );
+
+    bus cart_bus();
+    cart cart(
+        .clk(clk),
+        .rst(rst),
+        .bus(cart_bus)
+    );
     
     bus boot_rom_bus();
     mem_boot_rom boot_rom(
@@ -28,7 +35,8 @@ module gameboy(
         .rst(rst),
         .cpu_bus(cpu_bus),
         .boot_rom_bus(boot_rom_bus),
-        .vram_bus(vram_bus)
+        .vram_bus(vram_bus),
+        .cart_bus(cart_bus)
     );
 
 endmodule

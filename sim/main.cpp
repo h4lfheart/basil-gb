@@ -6,6 +6,7 @@
 
 #include <Vgameboy.h>
 #include <Vgameboy_gameboy.h>
+#include <Vgameboy_cart.h>
 #include <Vgameboy_mem_boot_rom.h>
 #include "verilated.h"
 #include "verilated_vcd_c.h"
@@ -85,6 +86,7 @@ int main(int argc, char **argv)
 
     const auto gb = std::make_unique<Vgameboy>(ctx.get());
 
+    load_rom(rom_path, gb->gameboy->cart->rom, 32768);
     load_rom(bootrom_path, gb->gameboy->boot_rom->rom, 256);
 
     std::unique_ptr<VerilatedVcdC> vcd;
