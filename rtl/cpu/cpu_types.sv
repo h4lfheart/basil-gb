@@ -5,10 +5,8 @@ package cpu_types;
     `define OP_XOR_R 'b10101???
 
     `define OP_LD_RR_NN 'b00??0001
+    `define OP_LD_RR_MEM_A 'b00??0010
 
-    `define R16_FIELD(IR) (IR[5:4]) 
-    `define R8_DST_FIELD(IR) (IR[5:3])
-    `define R8_SRC_FIELD(IR) (IR[2:0])
 
     typedef enum logic [1:0] {
         T0 = 'd0,
@@ -39,6 +37,16 @@ package cpu_types;
     } bus_rd_dst_t;
 
     typedef enum {
+        BUS_WR_SRC_NONE,
+        BUS_WR_SRC_R8
+    } bus_wr_src_t;
+    
+    typedef enum {
+        BUS_WR_DST_NONE,
+        BUS_WR_DST_R16
+    } bus_wr_dst_t;
+
+    typedef enum {
         ID_ADJ_NONE,
         IDU_ADJ_INC,
         IDU_ADJ_DEC
@@ -46,7 +54,8 @@ package cpu_types;
 
     typedef enum {
         IDU_SRC_NONE,
-        IDU_SRC_PC
+        IDU_SRC_PC,
+        IDU_SRC_R16
     } idu_src_t;
     
     typedef enum {
@@ -57,7 +66,8 @@ package cpu_types;
     typedef enum {
         WB_SRC_NONE,
         WB_SRC_WZ,
-        WB_SRC_ALU
+        WB_SRC_ALU,
+        WB_SRC_IDU
     } wb_src_t;
 
     typedef enum {
@@ -149,13 +159,20 @@ package cpu_types;
 
         // Bus
         logic bus_rd;
-        logic bus_wr;
         bus_rd_src_t bus_rd_src;
         bus_rd_dst_t bus_rd_dst;
+
+        logic bus_wr;
+        bus_wr_src_t bus_wr_src;
+        r8_t bus_wr_src_r8;
+
+        bus_wr_dst_t bus_wr_dst;
+        r16_t bus_wr_dst_r16;
 
         // Increment-Decrement Unit
         idu_adj_t idu_adj;
         idu_src_t idu_src;
+        r16_t idu_src_r16;
         idu_dst_t idu_dst;
 
         // Writeback

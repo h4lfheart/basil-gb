@@ -35,4 +35,12 @@ module mmu (
         end
     end
 
+    always_comb begin
+        if (cpu_bus.wr) begin
+            if (cs_boot_rom);
+            else
+                $display("Invalid write at 0x%0h", cpu_bus.addr);
+        end
+    end
+
 endmodule

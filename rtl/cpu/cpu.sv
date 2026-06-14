@@ -36,6 +36,14 @@ module cpu(
         case (ctrl.bus_rd_src)
             BUS_RD_SRC_PC: bus_addr = PC;
         endcase
+
+        case (ctrl.bus_wr_src)
+            BUS_WR_SRC_R8: bus_data_wr = r8_sel(ctrl.bus_wr_src_r8);
+        endcase
+
+        case (ctrl.bus_wr_dst)
+            BUS_WR_DST_R16: bus_addr = r16_sel(ctrl.bus_wr_dst_r16);
+        endcase
     end
 
     `ON_TCYCLE(T3)
@@ -67,6 +75,12 @@ module cpu(
     logic [15:0] SP;
     flags_t F;
 
+    logic [15:0] BC, DE, HL, AF;
+    assign BC = {B, C};
+    assign DE = {D, E};
+    assign HL = {H, L};
+    assign AF = {A, F};
+
     logic wr_r8;
     logic [7:0] wr_reg_r8;
     logic [7:0] wr_data_r8;
@@ -94,6 +108,16 @@ module cpu(
         endcase
     endfunction
 
+    function automatic logic [15:0] r16_sel(r16_t r);
+        case (r)
+            R16_BC: return BC;
+            R16_DE: return DE;
+            R16_HL: return HL;
+            R16_SP: return SP;
+            R16_AF: return AF;
+        endcase
+    endfunction
+
     always_comb begin
         wr_r8 = 0;
         wr_reg_r8 = 0;
@@ -112,6 +136,8 @@ module cpu(
                 wr_reg_r16 = ctrl.wb_r16;
                 case (ctrl.wb_src) // TODO WB sel auto func
                     WB_SRC_WZ: wr_data_r16 = {W, Z};
+                    WB_SRC_ALU: wr_data_r16 = alu_result;
+                    WB_SRC_IDU: wr_data_r16 = idu_out;
                 endcase
             end
         endcase
@@ -175,15 +201,16 @@ module cpu(
     logic signed [1:0] idu_adj;
 
     always_comb begin
-        case (ctrl.idu_src)
-            IDU_SRC_PC: idu_in = PC;
+        case (ctrl.idu_adj)
+            IDU_ADJ_INC: idu_adj = 'sh1;
+            IDU_ADJ_DEC: idu_adj = -'sh1;
         endcase
     end
 
     always_comb begin
-        case (ctrl.idu_adj)
-            IDU_ADJ_INC: idu_adj = 'sh1;
-            IDU_ADJ_DEC: idu_adj = -'sh1;
+        case (ctrl.idu_src)
+            IDU_SRC_PC: idu_in = PC;
+            IDU_SRC_R16: idu_in = r16_sel(ctrl.idu_src_r16);
         endcase
     end
 
