@@ -33,10 +33,10 @@ module cpu(
     logic CC;
     always_comb begin
         case (ctrl.cc)
-            CC_NZ: CC <= ~F.z;
-            CC_Z: CC <= F.z;
-            CC_NC: CC <= ~F.c;
-            CC_C: CC <= F.c;
+            CC_NZ: CC = ~F.z;
+            CC_Z: CC = F.z;
+            CC_NC: CC = ~F.c;
+            CC_C: CC = F.c;
         endcase
     end
 
@@ -187,9 +187,10 @@ module cpu(
             end
         endcase
 
-        if (ctrl.wb_flags)
+        if (ctrl.wb_flags) begin
             wr_flags = 1;
             wr_data_flags = alu_flags;
+        end
     end
 
     

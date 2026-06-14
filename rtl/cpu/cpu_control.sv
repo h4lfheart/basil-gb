@@ -37,19 +37,48 @@ module cpu_control(
         ctrl.fetch_cycle = 1;
     endtask
 
-    task ctrl_alu_a(alu_action_t action);
-        ctrl_fetch();
+    task ctrl_alu_a(alu_action_t action, logic writeback);
+        if (r8_src_field == R8_HL) begin
+            case (mcycle)
+                M0: begin
+                    ctrl.bus_rd = 1;
+                    ctrl.bus_rd_src = BUS_RD_SRC_R16;
+                    ctrl.bus_rd_src_r16 = R16_HL;
+                    ctrl.bus_rd_dst = BUS_RD_DST_Z;
+                end
+                M1: begin
+                    ctrl_fetch();
 
-        ctrl.alu_action = action;
-        ctrl.alu_a_src = ALU_SRC_R8;
-        ctrl.alu_a_r8 = R8_A;
-        ctrl.alu_b_src = ALU_SRC_R8;
-        ctrl.alu_b_r8 = r8_src_field;
+                    ctrl.alu_action = action;
+                    ctrl.alu_a_src = ALU_SRC_R8;
+                    ctrl.alu_a_r8 = R8_A;
+                    ctrl.alu_b_src = ALU_SRC_Z;
 
-        ctrl.wb_src = WB_SRC_ALU;
-        ctrl.wb_dst = WB_DST_R8;
-        ctrl.wb_r8 = R8_A;
-        ctrl.wb_flags = 1;
+                    if (writeback) begin
+                        ctrl.wb_src = WB_SRC_ALU;
+                        ctrl.wb_dst = WB_DST_R8;
+                        ctrl.wb_r8 = R8_A;
+                    end
+                    ctrl.wb_flags = 1;
+                end
+            endcase
+        end
+        else begin
+            ctrl_fetch();
+
+            ctrl.alu_action = action;
+            ctrl.alu_a_src = ALU_SRC_R8;
+            ctrl.alu_a_r8 = R8_A;
+            ctrl.alu_b_src = ALU_SRC_R8;
+            ctrl.alu_b_r8 = r8_src_field;
+
+            if (writeback) begin
+                ctrl.wb_src = WB_SRC_ALU;
+                ctrl.wb_dst = WB_DST_R8;
+                ctrl.wb_r8 = R8_A;
+            end
+            ctrl.wb_flags = 1;
+        end
     endtask
 
     task ctrl_cb_bit_op(alu_action_t action);
@@ -551,9 +580,17 @@ module cpu_control(
                 `OP_RRA: begin
                     ctrl_alu_a_acc(ALU_ACTION_RR);
                 end
-                
+
                 `OP_XOR_R: begin
-                    ctrl_alu_a(ALU_ACTION_XOR);
+                    ctrl_alu_a(ALU_ACTION_XOR, 1);
+                end
+
+                `OP_SUB_R: begin
+                    ctrl_alu_a(ALU_ACTION_SUB, 1);
+                end
+
+                `OP_CP_R: begin
+                    ctrl_alu_a(ALU_ACTION_SUB, 0);
                 end
 
                 `OP_CP_N: begin

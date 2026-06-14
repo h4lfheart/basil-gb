@@ -1,9 +1,9 @@
 function automatic logic half_carry_add8(logic [7:0] a, logic [7:0] b, logic cin);
-    return ((a[3:0] + b[3:0] + cin) > 4'hF);
+    return ((5'(a[3:0]) + 5'(b[3:0]) + 5'(cin)) > 5'hF);
 endfunction
 
 function automatic logic half_carry_sub8(logic [7:0] a, logic [7:0] b, logic cin);
-    return ((a[3:0] - b[3:0] - cin) > 4'hF);
+    return (5'(b[3:0]) + 5'(cin) > 5'(a[3:0]));
 endfunction
 
 module cpu_alu(
@@ -84,15 +84,6 @@ module cpu_alu(
                 flags.n = 0;
                 flags.h = 0;
                 flags.c = 0;
-            end
-
-            ALU_ACTION_RL: begin
-                result = {a[6:0], flags_in.c};
-
-                flags.z = (result == 0);
-                flags.n = 0;
-                flags.h = 0;
-                flags.c = a[7];
             end
 
             ALU_ACTION_RLC: begin

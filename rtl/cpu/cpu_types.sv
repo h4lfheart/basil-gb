@@ -30,6 +30,8 @@ package cpu_types;
     `define OP_LDH_C_A 'b11100010
     `define OP_LDH_A_N 'b11110000
 
+    `define OP_SUB_R 'b10010???
+    `define OP_CP_R 'b10111???
     `define OP_XOR_R 'b10101???
 
     `define OP_CP_N 'b11111110

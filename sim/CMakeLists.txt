@@ -31,6 +31,8 @@ set(SV_SOURCES
     ../rtl/mem/mem_vram.sv
     ../rtl/mem/mmu.sv
 
+    ../rtl/ppu/ppu.sv
+
     ../rtl/gameboy.sv
 )
 

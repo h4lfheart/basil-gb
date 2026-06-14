@@ -37,6 +37,13 @@ module gameboy(
         .bus(vram_bus)
     );
 
+    bus ppu_bus();
+    ppu ppu(
+        .clk(clk),
+        .rst(rst),
+        .bus(ppu_bus)
+    );
+
     mmu mmu(
         .clk(clk),
         .rst(rst),
@@ -44,7 +51,8 @@ module gameboy(
         .boot_rom_bus(boot_rom_bus),
         .vram_bus(vram_bus),
         .hram_bus(hram_bus),
-        .cart_bus(cart_bus)
+        .cart_bus(cart_bus),
+        .ppu_bus(ppu_bus)
     );
 
 endmodule

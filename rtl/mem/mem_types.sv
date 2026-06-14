@@ -13,4 +13,7 @@ package mem_types;
 
     localparam logic [15:0] HRAM_START = 'hFF80;
     localparam logic [15:0] HRAM_END = 'hFFFE;
+
+    localparam logic [15:0] PPU_REG_START = 'hFF40;
+    localparam logic [15:0] PPU_REG_END = 'hFF4B;
 endpackage

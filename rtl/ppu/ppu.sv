@@ -1,0 +1,105 @@
+typedef struct packed {
+    logic EN;
+    logic WIN_TILE_MAP;
+    logic WIN_EN;
+    logic TILE_DATA_MAP;
+    logic BG_TILE_MAP;
+    logic OBJ_SIZE;
+    logic OBJ_EN;
+    logic BG_EN;
+} lcdc_t;
+
+typedef struct packed {
+    logic B7;
+    logic LYC_INT;
+    logic OAM_INT;
+    logic VBLANK_INT;
+    logic HBLANK_INT;
+    logic LYC_FLAG;
+    logic [1:0] MODE;
+} stat_t;
+
+localparam logic [15:0] REG_LCDC = 'hFF40;
+localparam logic [15:0] REG_STAT = 'hFF41;
+localparam logic [15:0] REG_SCY = 'hFF42;
+localparam logic [15:0] REG_SCX = 'hFF43;
+localparam logic [15:0] REG_LY = 'hFF44;
+localparam logic [15:0] REG_LYC = 'hFF45;
+localparam logic [15:0] REG_DMA = 'hFF46;
+localparam logic [15:0] REG_BGP = 'hFF47;
+localparam logic [15:0] REG_OBP0 = 'hFF48;
+localparam logic [15:0] REG_OBP1 = 'hFF49;
+localparam logic [15:0] REG_WY = 'hFF4A;
+localparam logic [15:0] REG_WX = 'hFF4B;
+
+module ppu(
+    input logic clk,
+    input logic rst,
+    bus.child_port bus
+);
+
+    // Registers
+    lcdc_t LCDC;
+    stat_t STAT;
+    logic [7:0] SCY;
+    logic [7:0] SCX;
+    logic [7:0] LY;
+    logic [7:0] LYC;
+    logic [7:0] BGP;
+    logic [7:0] OBP0;
+    logic [7:0] OBP1;
+    logic [7:0] WY;
+    logic [7:0] WX;
+
+    always_comb begin
+        bus.data_rd = 'hFF;
+        if (bus.cs && bus.rd)
+            case (bus.addr)
+                REG_LCDC: bus.data_rd = LCDC;
+                REG_STAT: bus.data_rd = STAT;
+                REG_SCY: bus.data_rd = SCY;
+                REG_SCX: bus.data_rd = SCX;
+                REG_LY: bus.data_rd = LY;
+                REG_LYC: bus.data_rd = LYC;
+                REG_BGP: bus.data_rd = BGP;
+                REG_OBP0: bus.data_rd = OBP0;
+                REG_OBP1: bus.data_rd = OBP1;
+                REG_WY: bus.data_rd = WY;
+                REG_WX: bus.data_rd = WX;
+            endcase
+    end
+
+    always @(posedge clk) begin
+        if (bus.cs && bus.wr)
+            case (bus.addr)
+                REG_LCDC: LCDC <= bus.data_wr;
+                REG_STAT: STAT <= {bus.data_wr[7:3], STAT[2:0]};
+                REG_SCY: SCY <= bus.data_wr;
+                REG_SCX: SCX <= bus.data_wr;
+                REG_LYC: LYC <= bus.data_wr;
+                REG_BGP: BGP <= bus.data_wr;
+                REG_OBP0: OBP0 <= bus.data_wr;
+                REG_OBP1: OBP1 <= bus.data_wr;
+                REG_WY: WY <= bus.data_wr;
+                REG_WX: WX <= bus.data_wr;
+            endcase
+    end
+
+    logic [8:0] dot;
+
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            dot <= 0;
+            LY <= 0;
+        end else if (LCDC.EN) begin
+            if (dot == 'd455) begin
+                dot <= 0;
+                LY <= (LY == 'd153) ? 0 : LY + 1;
+            end 
+            else begin
+                dot <= dot + 1;
+            end
+        end
+    end
+endmodule
+
