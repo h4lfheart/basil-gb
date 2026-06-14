@@ -1,5 +1,15 @@
 package cpu_types;
 
+    `define OP_NOP 'b00000000
+
+    `define OP_XOR_R 'b10101???
+
+    `define OP_LD_RR_NN 'b00??0001
+
+    `define R16_FIELD(IR) (IR[5:4]) 
+    `define R8_DST_FIELD(IR) (IR[5:3])
+    `define R8_SRC_FIELD(IR) (IR[2:0])
+
     typedef enum logic [1:0] {
         T0 = 'd0,
         T1 = 'd1,
@@ -15,12 +25,6 @@ package cpu_types;
         M4 = 'd4,
         M5 = 'd5
     } mcycle_t;
-
-    `define OP_NOP 'b00000000
-
-    `define OP_LD_RR_NN 'b00??0001
-
-    `define R16_FIELD(IR) (IR[5:4]) 
 
     typedef enum {
         BUS_RD_SRC_NONE,
@@ -52,7 +56,8 @@ package cpu_types;
 
     typedef enum {
         WB_SRC_NONE,
-        WB_SRC_WZ
+        WB_SRC_WZ,
+        WB_SRC_ALU
     } wb_src_t;
 
     typedef enum {
@@ -60,6 +65,16 @@ package cpu_types;
         WB_DST_R8,
         WB_DST_R16
     } wb_dst_t;
+
+    typedef enum {
+        ALU_ACTION_NONE,
+        ALU_ACTION_XOR
+    } alu_action_t;
+
+    typedef enum {
+        ALU_SRC_NONE,
+        ALU_SRC_R8
+    } alu_src_t;
 
     typedef enum logic [2:0] {
         R8_B = 'd0,
@@ -94,7 +109,7 @@ package cpu_types;
         R16MEM_HLD = 'd3
     } r16mem_t;
 
-    function automatic r16_t r16_sel(logic [1:0] register);
+    function automatic r16_t r16_to_r16(logic [1:0] register);
         case (register)
             R16_BC: return R16_BC;
             R16_DE: return R16_DE;
@@ -148,6 +163,14 @@ package cpu_types;
         wb_dst_t wb_dst;
         r8_t wb_r8;
         r16_t wb_r16;
+        logic wb_flags;
+
+        // ALU
+        alu_action_t alu_action;
+        alu_src_t alu_a_src;
+        alu_src_t alu_b_src;
+        r8_t alu_a_r8;
+        r8_t alu_b_r8;
 
         // Misc.
         logic fetch_cycle;

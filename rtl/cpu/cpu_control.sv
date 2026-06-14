@@ -20,6 +20,21 @@ module cpu_control(
         ctrl.fetch_cycle = 1;
     endtask
 
+    task ctrl_alu_a(alu_action_t action);
+        ctrl_fetch();
+
+        ctrl.alu_action = ALU_ACTION_XOR;
+        ctrl.alu_a_src = ALU_SRC_R8;
+        ctrl.alu_a_r8 = R8_A;
+        ctrl.alu_b_src = ALU_SRC_R8;
+        ctrl.alu_b_r8 = r8_t'(`R8_SRC_FIELD(IR));
+
+        ctrl.wb_src = WB_SRC_ALU;
+        ctrl.wb_dst = WB_DST_R8;
+        ctrl.wb_r8 = R8_A;
+        ctrl.wb_flags = 1;
+    endtask
+
     always_comb begin
         ctrl = 0;
 
@@ -41,9 +56,13 @@ module cpu_control(
 
                         ctrl.wb_src = WB_SRC_WZ;
                         ctrl.wb_dst = WB_DST_R16;
-                        ctrl.wb_r16 = r16_sel(`R16_FIELD(IR));
+                        ctrl.wb_r16 = r16_to_r16(`R16_FIELD(IR));
                     end
                 endcase
+            end
+
+            `OP_XOR_R: begin
+                ctrl_alu_a(ALU_ACTION_XOR);
             end
         endcase
     end
