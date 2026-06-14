@@ -16,6 +16,7 @@ set(SV_SOURCES
 
     ../rtl/cpu/cpu_types.sv
     ../rtl/cpu/cpu_bus_controller.sv
+    ../rtl/cpu/cpu_regfile.sv
     ../rtl/cpu/cpu_idu.sv
     ../rtl/cpu/cpu_control.sv
     ../rtl/cpu/cpu_clock.sv

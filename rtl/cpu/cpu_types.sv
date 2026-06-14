@@ -17,8 +17,10 @@ package cpu_types;
     } mcycle_t;
 
     `define OP_NOP 'b00000000
-    
-    `define OP_LD_RR_NN 'b00000000
+
+    `define OP_LD_RR_NN 'b00??0001
+
+    `define R16_FIELD(IR) (IR[5:4]) 
 
     typedef enum {
         BUS_RD_SRC_NONE,
@@ -27,7 +29,9 @@ package cpu_types;
     
     typedef enum {
         BUS_RD_DST_NONE,
-        BUS_RD_DST_IR
+        BUS_RD_DST_IR,
+        BUS_RD_DST_Z,
+        BUS_RD_DST_W
     } bus_rd_dst_t;
 
     typedef enum {
@@ -45,6 +49,86 @@ package cpu_types;
         IDU_DST_NONE,
         IDU_DST_PC
     } idu_dst_t;
+
+    typedef enum {
+        WB_SRC_NONE,
+        WB_SRC_WZ
+    } wb_src_t;
+
+    typedef enum {
+        WB_DST_NONE,
+        WB_DST_R8,
+        WB_DST_R16
+    } wb_dst_t;
+
+    typedef enum logic [2:0] {
+        R8_B = 'd0,
+        R8_C = 3'd1,
+        R8_D = 'd2,
+        R8_E = 'd3,
+        R8_H = 'd4,
+        R8_L = 'd5,
+        R8_HL = 'd6, // INVALID
+        R8_A = 'd7
+    } r8_t;
+
+    typedef enum logic [2:0] {
+        R16_BC = 'd0,
+        R16_DE = 'd1,
+        R16_HL = 'd2,
+        R16_SP = 'd3,
+        R16_AF = 'd4
+    } r16_t;
+
+    typedef enum logic [2:0] {
+        R16STK_BC = 'd0,
+        R16STK_DE = 'd1,
+        R16STK_HL = 'd2,
+        R16STK_AF = 'd3
+    } r16stk_t;
+
+    typedef enum logic [2:0] {
+        R16MEM_BC = 'd0,
+        R16MEM_DE = 'd1,
+        R16MEM_HLI = 'd2,
+        R16MEM_HLD = 'd3
+    } r16mem_t;
+
+    function automatic r16_t r16_sel(logic [1:0] register);
+        case (register)
+            R16_BC: return R16_BC;
+            R16_DE: return R16_DE;
+            R16_HL: return R16_HL;
+            R16_SP: return R16_SP;
+            R16_AF: return R16_AF;
+        endcase
+    endfunction
+
+    function automatic r16_t r16stk_to_r16(logic [1:0] register);
+        case (register)
+            R16STK_BC: return R16_BC;
+            R16STK_DE: return R16_DE;
+            R16STK_HL: return R16_HL;
+            R16STK_AF: return R16_AF;
+        endcase
+    endfunction
+
+    function automatic r16_t r16mem_to_r16(logic [1:0] register);
+        case (register)
+            R16MEM_BC: return R16_BC;
+            R16MEM_DE: return R16_DE;
+            R16MEM_HLI: return R16_HL;
+            R16MEM_HLD: return R16_HL;
+        endcase
+    endfunction
+
+    typedef struct packed {
+        logic z; // zero
+        logic n; // subtract
+        logic h; // half-carry
+        logic c; // carry
+        logic [3:0] unused;
+    } flags_t;
     
     typedef struct packed {
 
@@ -59,6 +143,11 @@ package cpu_types;
         idu_src_t idu_src;
         idu_dst_t idu_dst;
 
+        // Writeback
+        wb_src_t wb_src;
+        wb_dst_t wb_dst;
+        r8_t wb_r8;
+        r16_t wb_r16;
 
         // Misc.
         logic fetch_cycle;

@@ -20,10 +20,60 @@ module cpu(
     );
 
     // Registers
+    logic [15:0] PC;
     logic [7:0] IR;
-    logic [7:0] PC;
     logic [7:0] Z;
     logic [7:0] W;
+
+    logic [7:0] A, B, C, D, E, H, L;
+    logic [15:0] SP;
+    flags_t F;
+
+    logic [7:0] wr_r8;
+    logic [7:0] wr_reg_r8;
+    logic [7:0] wr_data_r8;
+
+    logic [15:0] wr_r16;
+    logic [15:0] wr_reg_r16;
+    logic [15:0] wr_data_r16;
+
+    always_comb begin
+        wr_r8 = 0;
+        wr_reg_r8 = 0;
+        wr_data_r8 = 0;
+
+        wr_r16 = 0;
+        wr_reg_r16 = 0;
+        wr_data_r16 = 0;
+
+        case (ctrl.wb_dst)
+            WB_DST_R16: begin
+                wr_r16 = 1'b1;
+                wr_reg_r16 = ctrl.wb_r16;
+                case (ctrl.wb_src)
+                    WB_SRC_WZ: wr_data_r16 = {W, Z};
+                endcase
+            end
+        endcase
+    end
+
+    cpu_regfile regfile (
+        .clk(clk),
+        .rst(rst),
+        .tcycle(tcycle),
+
+        .wr_r8(wr_r8),
+        .wr_reg_r8(wr_reg_r8),
+        .wr_data_r8(wr_data_r8),
+
+        .wr_r16(wr_r16),
+        .wr_reg_r16(wr_reg_r16),
+        .wr_data_r16(wr_data_r16),
+
+        .A(A), .B(B), .C(C), .D(D), .E(E), .H(H), .L(L),
+        .SP(SP),
+        .F(F)
+    );
 
     // Control
     control_t ctrl;
@@ -48,6 +98,8 @@ module cpu(
         if (ctrl.bus_rd)
             case (ctrl.bus_rd_dst)
                 BUS_RD_DST_IR: IR <= bus_data_rd;
+                BUS_RD_DST_Z: Z <= bus_data_rd;
+                BUS_RD_DST_W: W <= bus_data_rd;
             endcase
 
     cpu_bus_controller bus_controller(
