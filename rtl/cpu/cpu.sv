@@ -63,6 +63,8 @@ module cpu(
 
         case (ctrl.bus_wr_src)
             BUS_WR_SRC_R8: bus_data_wr = r8_sel(ctrl.bus_wr_src_r8);
+            BUS_WR_SRC_PCH: bus_data_wr = PC[15:8];
+            BUS_WR_SRC_PCL: bus_data_wr = PC[7:0];
         endcase
 
         case (ctrl.bus_wr_dst)
@@ -184,6 +186,12 @@ module cpu(
             wr_flags = 1;
             wr_data_flags = alu_flags;
     end
+
+    
+    `ON_TCYCLE(T3)
+        case (ctrl.wb_dst)
+            WB_DST_PC: PC <= wb_sel(ctrl.wb_src);
+        endcase
 
     cpu_regfile regfile (
         .clk(clk),

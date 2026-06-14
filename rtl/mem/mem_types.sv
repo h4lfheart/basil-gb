@@ -10,4 +10,7 @@ package mem_types;
 
     localparam logic [15:0] VRAM_START = 'h8000;
     localparam logic [15:0] VRAM_END = 'h9FFF;
+
+    localparam logic [15:0] HRAM_START = 'hFF80;
+    localparam logic [15:0] HRAM_END = 'hFFFE;
 endpackage

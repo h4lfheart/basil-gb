@@ -79,6 +79,52 @@ module cpu_control(
                     ctrl_fetch();
                 end
 
+                `OP_CALL_NN: begin
+                    case (mcycle)
+                        M0: begin
+                            ctrl_pc_read(BUS_RD_DST_Z);
+                        end
+                        M1: begin
+                            ctrl_pc_read(BUS_RD_DST_W);
+                        end
+                        M2: begin
+                            ctrl.idu_adj = IDU_ADJ_DEC;
+                            ctrl.idu_src = IDU_SRC_R16;
+                            ctrl.idu_src_r16 = R16_SP;
+                            
+                            ctrl.wb_src = WB_SRC_IDU;
+                            ctrl.wb_dst = WB_DST_R16;
+                            ctrl.wb_r16 = R16_SP;
+                        end
+                        M3: begin
+                            ctrl.bus_wr = 1;
+                            ctrl.bus_wr_src = BUS_WR_SRC_PCH;
+                            ctrl.bus_wr_dst = BUS_WR_DST_R16;
+                            ctrl.bus_wr_dst_r16 = R16_SP;
+
+                            ctrl.idu_adj = IDU_ADJ_DEC;
+                            ctrl.idu_src = IDU_SRC_R16;
+                            ctrl.idu_src_r16 = R16_SP;
+                            
+                            ctrl.wb_src = WB_SRC_IDU;
+                            ctrl.wb_dst = WB_DST_R16;
+                            ctrl.wb_r16 = R16_SP;
+                        end
+                        M4: begin
+                            ctrl.bus_wr = 1;
+                            ctrl.bus_wr_src = BUS_WR_SRC_PCL;
+                            ctrl.bus_wr_dst = BUS_WR_DST_R16;
+                            ctrl.bus_wr_dst_r16 = R16_SP;
+
+                            ctrl.wb_src = WB_SRC_WZ;
+                            ctrl.wb_dst = WB_DST_PC;
+                        end
+                        M5: begin
+                            ctrl_fetch();
+                        end
+                    endcase
+                end
+
                 `OP_JR_CC_E: begin
                     ctrl.cc = cc_field;
 

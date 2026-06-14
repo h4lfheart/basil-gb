@@ -2,6 +2,7 @@ package cpu_types;
 
     `define OP_NOP 'b00000000
 
+    `define OP_CALL_NN 'b11001101
     `define OP_JR_CC_E 'b001??000
 
     `define OP_INC_R 'b00???100
@@ -57,7 +58,9 @@ package cpu_types;
 
     typedef enum {
         BUS_WR_SRC_NONE,
-        BUS_WR_SRC_R8
+        BUS_WR_SRC_R8,
+        BUS_WR_SRC_PCH,
+        BUS_WR_SRC_PCL
     } bus_wr_src_t;
     
     typedef enum {
@@ -98,7 +101,8 @@ package cpu_types;
     typedef enum {
         WB_DST_NONE,
         WB_DST_R8,
-        WB_DST_R16
+        WB_DST_R16,
+        WB_DST_PC
     } wb_dst_t;
 
     typedef enum {

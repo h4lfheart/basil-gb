@@ -23,6 +23,13 @@ module gameboy(
         .bus(boot_rom_bus)
     );
 
+    bus hram_bus();
+    mem_hram hram(
+        .clk(clk),
+        .rst(rst),
+        .bus(hram_bus)
+    );
+
     bus vram_bus();
     mem_vram vram(
         .clk(clk),
@@ -36,6 +43,7 @@ module gameboy(
         .cpu_bus(cpu_bus),
         .boot_rom_bus(boot_rom_bus),
         .vram_bus(vram_bus),
+        .hram_bus(hram_bus),
         .cart_bus(cart_bus)
     );
 
