@@ -59,18 +59,23 @@ module cpu(
             BUS_RD_SRC_PC: bus_addr = PC;
             BUS_RD_SRC_WZ: bus_addr = WZ;
             BUS_RD_SRC_R16: bus_addr = r16_sel(ctrl.bus_rd_src_r16);
+            BUS_RD_SRC_Z: bus_addr = {'hFF, Z};
         endcase
 
         case (ctrl.bus_wr_src)
             BUS_WR_SRC_R8: bus_data_wr = r8_sel(ctrl.bus_wr_src_r8);
             BUS_WR_SRC_PCH: bus_data_wr = PC[15:8];
             BUS_WR_SRC_PCL: bus_data_wr = PC[7:0];
+            BUS_WR_SRC_R16H: bus_data_wr = r16_sel(ctrl.bus_wr_src_r16)[15:8];
+            BUS_WR_SRC_R16L: bus_data_wr = r16_sel(ctrl.bus_wr_src_r16)[7:0];
+            BUS_WR_SRC_ALU: bus_data_wr = alu_result;
         endcase
 
         case (ctrl.bus_wr_dst)
             BUS_WR_DST_R16: bus_addr = r16_sel(ctrl.bus_wr_dst_r16);
             BUS_WR_DST_C: bus_addr = {'hFF, C};
             BUS_WR_DST_Z: bus_addr = {'hFF, Z};
+            BUS_WR_DST_WZ: bus_addr = WZ;
         endcase
     end
 
@@ -244,6 +249,7 @@ module cpu(
         .b(alu_b),
         .bit_idx(ctrl.alu_bit),
         .flags_in(F),
+        .z_mod(ctrl.alu_z_mod),
         .result(alu_result),
         .flags(alu_flags)
     );
