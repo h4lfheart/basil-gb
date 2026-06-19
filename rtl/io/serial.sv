@@ -5,6 +5,8 @@ module serial(
     input logic rst,
     bus.child_port bus
 );
+    import "DPI-C" function void serial_putchar(byte unsigned c);
+
     logic [7:0] SB;
     logic [7:0] SC;
 
@@ -24,10 +26,10 @@ module serial(
 
         if (bus.cs && bus.wr) begin
             case (bus.addr)
-                REG_SB: begin 
+                REG_SB: begin
                     SB <= bus.data_wr;
                     if (bus.wr != wr_prev)
-                        $write("%c", bus.data_wr);
+                        serial_putchar(bus.data_wr);
                 end
                 REG_SC: SC <= bus.data_wr;
             endcase

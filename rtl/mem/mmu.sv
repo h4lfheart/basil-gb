@@ -82,7 +82,7 @@ module mmu (
             else if (cs_serial) cpu_bus.data_rd = serial_bus.data_rd;
             else if (cs_timer) cpu_bus.data_rd = timer_bus.data_rd;
             else if (cpu_bus.addr == 'hFF00) cpu_bus.data_rd = 'b00001111;
-            else $display("Invalid read at 0x%0h", cpu_bus.addr);
+            //else $display("Invalid read at 0x%0h", cpu_bus.addr);
         end
     end
 
@@ -97,7 +97,7 @@ module mmu (
             else if (cs_cpu_reg);
             else if (cs_serial);
             else if (cs_timer);
-            else $display("Invalid write at 0x%0h", cpu_bus.addr);
+            //else $display("Invalid write at 0x%0h", cpu_bus.addr);
         end
     end
 

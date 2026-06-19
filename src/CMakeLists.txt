@@ -5,6 +5,8 @@ set(CMAKE_CXX_STANDARD 23)
 
 add_executable(basil_gb
     main.cpp
+    sim/sim.cpp
+    testing/runner.cpp
 )
 
 target_include_directories(basil_gb PRIVATE
