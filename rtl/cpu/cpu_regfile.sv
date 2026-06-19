@@ -16,16 +16,43 @@ module cpu_regfile (
     input logic wr_flags,
     input flags_t wr_data_flags,
 
-    output logic [7:0] A,
-    output logic [7:0] B,
-    output logic [7:0] C,
-    output logic [7:0] D,
-    output logic [7:0] E,
-    output logic [7:0] H,
-    output logic [7:0] L,
-    output logic [15:0] SP,
     output flags_t F
 );
+
+    logic [7:0] A, B, C, D, E, H, L;
+    logic [15:0] SP;
+
+    logic [15:0] BC, DE, HL, AF;
+    assign BC = {B, C};
+    assign DE = {D, E};
+    assign HL = {H, L};
+    assign AF = {A, F};
+
+    function automatic logic [7:0] read_r8(r8_t r);
+        case (r)
+            R8_B: return B;
+            R8_C: return C;
+            R8_D: return D;
+            R8_E: return E;
+            R8_H: return H;
+            R8_L: return L;
+            R8_A: return A;
+            R8_HL: begin
+                $display("Unsupported R8_HL operand to read_r8");
+                $finish;
+            end
+        endcase
+    endfunction
+
+    function automatic logic [15:0] read_r16(r16_t r);
+        case (r)
+            R16_BC: return BC;
+            R16_DE: return DE;
+            R16_HL: return HL;
+            R16_SP: return SP;
+            R16_AF: return AF;
+        endcase
+    endfunction
 
     always_ff @(posedge clk) begin
         if (rst) begin

@@ -81,10 +81,10 @@ module cpu(
     logic CC;
     always_comb begin
         case (ctrl.cc)
-            CC_NZ: CC = ~F.z;
-            CC_Z: CC = F.z;
-            CC_NC: CC = ~F.c;
-            CC_C: CC = F.c;
+            CC_NZ: CC = ~regfile.F.z;
+            CC_Z: CC = regfile.F.z;
+            CC_NC: CC = ~regfile.F.c;
+            CC_C: CC = regfile.F.c;
         endcase
     end
 
@@ -105,24 +105,24 @@ module cpu(
         case (ctrl.bus_rd_src)
             BUS_RD_SRC_PC: bus_addr = PC;
             BUS_RD_SRC_WZ: bus_addr = WZ;
-            BUS_RD_SRC_R16: bus_addr = r16_sel(ctrl.bus_rd_src_r16);
+            BUS_RD_SRC_R16: bus_addr = regfile.read_r16(ctrl.bus_rd_src_r16);
             BUS_RD_SRC_Z: bus_addr = {'hFF, Z};
-            BUS_RD_SRC_C: bus_addr = {'hFF, C};
+            BUS_RD_SRC_C: bus_addr = {'hFF, regfile.read_r8(R8_C)};
         endcase
 
         case (ctrl.bus_wr_src)
             BUS_WR_SRC_Z: bus_data_wr = Z;
-            BUS_WR_SRC_R8: bus_data_wr = r8_sel(ctrl.bus_wr_src_r8);
+            BUS_WR_SRC_R8: bus_data_wr = regfile.read_r8(ctrl.bus_wr_src_r8);
             BUS_WR_SRC_PCH: bus_data_wr = PC[15:8];
             BUS_WR_SRC_PCL: bus_data_wr = PC[7:0];
-            BUS_WR_SRC_R16H: bus_data_wr = r16_sel(ctrl.bus_wr_src_r16)[15:8];
-            BUS_WR_SRC_R16L: bus_data_wr = r16_sel(ctrl.bus_wr_src_r16)[7:0];
+            BUS_WR_SRC_R16H: bus_data_wr = regfile.read_r16(ctrl.bus_wr_src_r16)[15:8];
+            BUS_WR_SRC_R16L: bus_data_wr = regfile.read_r16(ctrl.bus_wr_src_r16)[7:0];
             BUS_WR_SRC_ALU: bus_data_wr = alu_result;
         endcase
 
         case (ctrl.bus_wr_dst)
-            BUS_WR_DST_R16: bus_addr = r16_sel(ctrl.bus_wr_dst_r16);
-            BUS_WR_DST_C: bus_addr = {'hFF, C};
+            BUS_WR_DST_R16: bus_addr = regfile.read_r16(ctrl.bus_wr_dst_r16);
+            BUS_WR_DST_C: bus_addr = {'hFF, regfile.read_r8(R8_C)};
             BUS_WR_DST_Z: bus_addr = {'hFF, Z};
             BUS_WR_DST_WZ: bus_addr = WZ;
         endcase
@@ -164,16 +164,6 @@ module cpu(
             Z_SIGN <= Z[7];
     end
 
-    logic [7:0] A, B, C, D, E, H, L;
-    logic [15:0] SP;
-    flags_t F;
-
-    logic [15:0] BC, DE, HL, AF;
-    assign BC = {B, C};
-    assign DE = {D, E};
-    assign HL = {H, L};
-    assign AF = {A, F};
-
     logic wr_r8;
     logic [7:0] wr_reg_r8;
     logic [7:0] wr_data_r8;
@@ -185,34 +175,8 @@ module cpu(
     logic wr_flags;
     flags_t wr_data_flags;
 
-    function automatic logic [7:0] r8_sel(r8_t r);
-        case (r)
-            R8_B: return B;
-            R8_C: return C;
-            R8_D: return D;
-            R8_E: return E;
-            R8_H: return H;
-            R8_L: return L;
-            R8_A: return A;
-            R8_HL: begin
-                $display("Unsupported R8_HL operand for ALU action %0d", ctrl.alu_action);
-                $finish;
-            end
-        endcase
-    endfunction
-
-    function automatic logic [15:0] r16_sel(r16_t r);
-        case (r)
-            R16_BC: return BC;
-            R16_DE: return DE;
-            R16_HL: return HL;
-            R16_SP: return SP;
-            R16_AF: return AF;
-        endcase
-    endfunction
-
-    function automatic logic [15:0] rst_vector(logic [2:0] rst);
-        case (rst)
+    function automatic logic [15:0] rst_vector(logic [2:0] rst_tgt);
+        case (rst_tgt)
             3'd0: return 'h0000;
             3'd1: return 'h0008;
             3'd2: return 'h0010;
@@ -285,11 +249,7 @@ module cpu(
         .wr_data_r16(wr_data_r16),
 
         .wr_flags(wr_flags),
-        .wr_data_flags(wr_data_flags),
-
-        .A(A), .B(B), .C(C), .D(D), .E(E), .H(H), .L(L),
-        .SP(SP),
-        .F(F)
+        .wr_data_flags(wr_data_flags)
     );
 
     // ALU
@@ -300,11 +260,11 @@ module cpu(
 
     function automatic logic [7:0] alu_src_sel(alu_src_t src, r8_t r8, r16_t r16);
         case (src)
-            ALU_SRC_R8: return r8_sel(r8);
+            ALU_SRC_R8: return regfile.read_r8(r8);
             ALU_SRC_Z: return Z;
             ALU_SRC_PCL: return PC[7:0];
-            ALU_SRC_R16H: return r16_sel(r16)[15:8];
-            ALU_SRC_R16L: return r16_sel(r16)[7:0];
+            ALU_SRC_R16H: return regfile.read_r16(r16)[15:8];
+            ALU_SRC_R16L: return regfile.read_r16(r16)[7:0];
             ALU_SRC_Z_SIGN_EXT: return Z_SIGN ? 'hFF : 'h00;
         endcase
     endfunction
@@ -326,7 +286,7 @@ module cpu(
         .a(alu_a),
         .b(alu_b),
         .bit_idx(ctrl.alu_bit),
-        .flags_in(F),
+        .flags_in(regfile.F),
         .z_mod(ctrl.alu_z_mod),
         .result(alu_result),
         .flags(alu_flags)
@@ -354,7 +314,7 @@ module cpu(
     always_comb begin
         case (ctrl.idu_src)
             IDU_SRC_PC: idu_in = PC;
-            IDU_SRC_R16: idu_in = r16_sel(ctrl.idu_src_r16);
+            IDU_SRC_R16: idu_in = regfile.read_r16(ctrl.idu_src_r16);
             IDU_SRC_WZ: idu_in = WZ;
             IDU_SRC_PCH: idu_in = PC[15:8];
         endcase
