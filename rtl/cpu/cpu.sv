@@ -15,7 +15,7 @@ module cpu(
     cpu_clock clock(
         .clk(clk),
         .rst(rst),
-        .rst_mcycle(ctrl.fetch_cycle),
+        .rst_mcycle(ctrl.last_mcycle),
         .tcycle(tcycle),
         .mcycle(mcycle)
     );
@@ -74,19 +74,21 @@ module cpu(
     `always_mcycle begin
         if (ctrl.set_cb_prefix)
             cb_prefix <= 1;
-        else if (ctrl.fetch_cycle)
+        else if (ctrl.last_mcycle)
             cb_prefix <= 0;
     end
 
-    logic CC;
-    always_comb begin
-        case (ctrl.cc)
-            CC_NZ: CC = ~regfile.F.z;
-            CC_Z: CC = regfile.F.z;
-            CC_NC: CC = ~regfile.F.c;
-            CC_C: CC = regfile.F.c;
+    function automatic logic cc_sel(cc_t cc);
+        case (cc)
+            CC_NZ: return ~regfile.F.z;
+            CC_Z: return regfile.F.z;
+            CC_NC: return ~regfile.F.c;
+            CC_C: return regfile.F.c;
         endcase
-    end
+    endfunction
+
+    logic CC;
+    assign CC = cc_sel(ctrl.cc);
 
     cpu_control control(
         .IR(IR),
@@ -101,39 +103,49 @@ module cpu(
     logic [7:0] bus_data_wr;
     logic [7:0] bus_data_rd;
 
+    function automatic logic [15:0] bus_rd_addr_sel(bus_rd_src_t src);
+        case (src)
+            BUS_RD_SRC_PC: return PC;
+            BUS_RD_SRC_WZ: return WZ;
+            BUS_RD_SRC_R16: return regfile.read_r16(ctrl.bus_rd_src_r16);
+            BUS_RD_SRC_Z: return {'hFF, Z};
+            BUS_RD_SRC_C: return {'hFF, regfile.read_r8(R8_C)};
+        endcase
+    endfunction
+
+    function automatic logic [7:0] bus_wr_data_sel(bus_wr_src_t src);
+        case (src)
+            BUS_WR_SRC_Z: return Z;
+            BUS_WR_SRC_R8: return regfile.read_r8(ctrl.bus_wr_src_r8);
+            BUS_WR_SRC_PCH: return PC[15:8];
+            BUS_WR_SRC_PCL: return PC[7:0];
+            BUS_WR_SRC_R16H: return regfile.read_r16(ctrl.bus_wr_src_r16)[15:8];
+            BUS_WR_SRC_R16L: return regfile.read_r16(ctrl.bus_wr_src_r16)[7:0];
+            BUS_WR_SRC_ALU: return alu_result;
+        endcase
+    endfunction
+
+    function automatic logic [15:0] bus_wr_addr_sel(bus_wr_dst_t dst);
+        case (dst)
+            BUS_WR_DST_R16: return regfile.read_r16(ctrl.bus_wr_dst_r16);
+            BUS_WR_DST_C: return {'hFF, regfile.read_r8(R8_C)};
+            BUS_WR_DST_Z: return {'hFF, Z};
+            BUS_WR_DST_WZ: return WZ;
+        endcase
+    endfunction
+
     always_comb begin
-        case (ctrl.bus_rd_src)
-            BUS_RD_SRC_PC: bus_addr = PC;
-            BUS_RD_SRC_WZ: bus_addr = WZ;
-            BUS_RD_SRC_R16: bus_addr = regfile.read_r16(ctrl.bus_rd_src_r16);
-            BUS_RD_SRC_Z: bus_addr = {'hFF, Z};
-            BUS_RD_SRC_C: bus_addr = {'hFF, regfile.read_r8(R8_C)};
-        endcase
-
-        case (ctrl.bus_wr_src)
-            BUS_WR_SRC_Z: bus_data_wr = Z;
-            BUS_WR_SRC_R8: bus_data_wr = regfile.read_r8(ctrl.bus_wr_src_r8);
-            BUS_WR_SRC_PCH: bus_data_wr = PC[15:8];
-            BUS_WR_SRC_PCL: bus_data_wr = PC[7:0];
-            BUS_WR_SRC_R16H: bus_data_wr = regfile.read_r16(ctrl.bus_wr_src_r16)[15:8];
-            BUS_WR_SRC_R16L: bus_data_wr = regfile.read_r16(ctrl.bus_wr_src_r16)[7:0];
-            BUS_WR_SRC_ALU: bus_data_wr = alu_result;
-        endcase
-
-        case (ctrl.bus_wr_dst)
-            BUS_WR_DST_R16: bus_addr = regfile.read_r16(ctrl.bus_wr_dst_r16);
-            BUS_WR_DST_C: bus_addr = {'hFF, regfile.read_r8(R8_C)};
-            BUS_WR_DST_Z: bus_addr = {'hFF, Z};
-            BUS_WR_DST_WZ: bus_addr = WZ;
-        endcase
+        bus_addr = ctrl.bus_wr ? bus_wr_addr_sel(ctrl.bus_wr_dst)
+                               : bus_rd_addr_sel(ctrl.bus_rd_src);
+        bus_data_wr = bus_wr_data_sel(ctrl.bus_wr_src);
     end
 
     `always_mcycle begin
         if (ctrl.bus_rd) begin
             case (ctrl.bus_rd_dst)
                 BUS_RD_DST_IR: IR <= bus_data_rd;
-                BUS_RD_DST_Z: Z <= bus_data_rd;
-                BUS_RD_DST_W: W <= bus_data_rd;
+                BUS_RD_DST_Z:  Z  <= bus_data_rd;
+                BUS_RD_DST_W:  W  <= bus_data_rd;
             endcase
         end
     end
@@ -152,7 +164,7 @@ module cpu(
     // Registers
     logic [15:0] PC;
     logic [7:0] IR;
-    
+
     logic [7:0] Z;
     logic [7:0] W;
     logic [15:0] WZ;
@@ -171,7 +183,7 @@ module cpu(
     logic wr_r16;
     logic [15:0] wr_reg_r16;
     logic [15:0] wr_data_r16;
-    
+
     logic wr_flags;
     flags_t wr_data_flags;
 
@@ -228,7 +240,6 @@ module cpu(
         end
     end
 
-    
     `always_mcycle begin
         case (ctrl.wb_dst)
             WB_DST_PC: PC <= wb_sel(ctrl.wb_src);
@@ -269,10 +280,8 @@ module cpu(
         endcase
     endfunction
 
-    always_comb begin
-        alu_a = alu_src_sel(ctrl.alu_a_src, ctrl.alu_a_r8, ctrl.alu_a_r16);
-        alu_b = alu_src_sel(ctrl.alu_b_src, ctrl.alu_b_r8, ctrl.alu_b_r16);
-    end
+    assign alu_a = alu_src_sel(ctrl.alu_a_src, ctrl.alu_a_r8, ctrl.alu_a_r16);
+    assign alu_b = alu_src_sel(ctrl.alu_b_src, ctrl.alu_b_r8, ctrl.alu_b_r16);
 
     `always_mcycle begin
         case (ctrl.alu_dst)
@@ -297,28 +306,32 @@ module cpu(
     logic [15:0] idu_out;
     logic signed [1:0] idu_adj;
 
-    always_comb begin
-        case (ctrl.idu_adj)
-            IDU_ADJ_NONE: idu_adj = 'sh0;
-            IDU_ADJ_INC: idu_adj = 'sh1;
-            IDU_ADJ_DEC: idu_adj = -'sh1;
+    function automatic logic signed [1:0] idu_adj_sel(idu_adj_t adj);
+        case (adj)
+            IDU_ADJ_NONE: return 'sh0;
+            IDU_ADJ_INC: return 'sh1;
+            IDU_ADJ_DEC: return -'sh1;
             IDU_ADJ_CARRY: begin
                 logic carry_out;
                 carry_out = (9'(Z) + 9'(PC[7:0])) > 9'hFF;
-                idu_adj = (carry_out == Z[7]) ? 2'sd0
-                        : carry_out ? 2'sd1 : -2'sd1;
+                return (carry_out == Z[7]) 
+                    ? 2'sd0
+                    : carry_out ? 2'sd1 : -2'sd1;
             end
         endcase
-    end
+    endfunction
 
-    always_comb begin
-        case (ctrl.idu_src)
-            IDU_SRC_PC: idu_in = PC;
-            IDU_SRC_R16: idu_in = regfile.read_r16(ctrl.idu_src_r16);
-            IDU_SRC_WZ: idu_in = WZ;
-            IDU_SRC_PCH: idu_in = PC[15:8];
+    function automatic logic [15:0] idu_src_sel(idu_src_t src);
+        case (src)
+            IDU_SRC_PC: return PC;
+            IDU_SRC_R16: return regfile.read_r16(ctrl.idu_src_r16);
+            IDU_SRC_WZ: return WZ;
+            IDU_SRC_PCH: return PC[15:8];
         endcase
-    end
+    endfunction
+
+    assign idu_adj = idu_adj_sel(ctrl.idu_adj);
+    assign idu_in = idu_src_sel(ctrl.idu_src);
 
     `always_mcycle begin
         case (ctrl.idu_dst)
@@ -330,12 +343,11 @@ module cpu(
             IDU_DST_W: W <= idu_out;
         endcase
     end
-    
+
     cpu_idu idu(
         .in(idu_in),
         .adj(idu_adj),
         .out(idu_out)
     );
-
 
 endmodule

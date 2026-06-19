@@ -362,7 +362,7 @@ package cpu_types;
         alu_z_mod_t alu_z_mod;
 
         // Misc.
-        logic fetch_cycle;
+        logic last_mcycle;
         logic set_cb_prefix;
         logic z_sign;
         cc_t cc;

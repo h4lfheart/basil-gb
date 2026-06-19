@@ -34,7 +34,7 @@ module cpu_control(
     task ctrl_fetch();
         ctrl_pc_read(BUS_RD_DST_IR);
 
-        ctrl.fetch_cycle = 1;
+        ctrl.last_mcycle = 1;
     endtask
 
     task ctrl_alu_a(alu_action_t action, logic writeback);
@@ -402,7 +402,7 @@ module cpu_control(
                             ctrl.idu_dst = IDU_DST_W;
                         end
                         M2: begin
-                            ctrl.fetch_cycle = 1;
+                            ctrl.last_mcycle = 1;
 
                             ctrl.bus_rd = 1;
                             ctrl.bus_rd_src = BUS_RD_SRC_WZ;
@@ -440,7 +440,7 @@ module cpu_control(
                             end
                         end
                         M2: begin
-                            ctrl.fetch_cycle = 1;
+                            ctrl.last_mcycle = 1;
 
                             ctrl.bus_rd = 1;
                             ctrl.bus_rd_src = BUS_RD_SRC_WZ;
@@ -497,7 +497,7 @@ module cpu_control(
                 end
 
                 `OP_JP_HL: begin
-                    ctrl.fetch_cycle = 1;
+                    ctrl.last_mcycle = 1;
 
                     ctrl.bus_rd = 1;
                     ctrl.bus_rd_src = BUS_RD_SRC_R16;
