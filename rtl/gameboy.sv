@@ -8,7 +8,15 @@ module gameboy(
         .clk(clk),
         .rst(rst),
         .bus(cpu_bus),
-        .reg_bus(cpu_reg_bus)
+        .reg_bus(cpu_reg_bus),
+        .interrupts('{
+            joypad: 0,
+            serial: 0,
+            timer: timer_interrupt,
+            stat: 0,
+            vblank: 0
+        })
+
     );
 
     bus cart_bus();
@@ -60,6 +68,15 @@ module gameboy(
         .bus(serial_bus)
     );
 
+    bus timer_bus();
+    logic timer_interrupt;
+    timer timer(
+        .clk(clk),
+        .rst(rst),
+        .bus(timer_bus),
+        .interrupt(timer_interrupt)
+    );
+
     mmu mmu(
         .clk(clk),
         .rst(rst),
@@ -71,7 +88,8 @@ module gameboy(
         .cart_bus(cart_bus),
         .ppu_bus(ppu_bus),
         .cpu_reg_bus(cpu_reg_bus),
-        .serial_bus(serial_bus)
+        .serial_bus(serial_bus),
+        .timer_bus(timer_bus)
     );
 
 endmodule

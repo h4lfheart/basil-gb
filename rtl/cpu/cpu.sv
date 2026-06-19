@@ -6,7 +6,8 @@ module cpu(
     input logic clk,
     input logic rst,
     bus.parent_port bus,
-    bus.child_port reg_bus
+    bus.child_port reg_bus,
+    input interrupts_t interrupts
 );
 
     // Clock
@@ -15,7 +16,7 @@ module cpu(
     cpu_clock clock(
         .clk(clk),
         .rst(rst),
-        .rst_mcycle(ctrl.last_mcycle),
+    .rst_mcycle(ctrl.last_mcycle),
         .tcycle(tcycle),
         .mcycle(mcycle)
     );
@@ -34,16 +35,65 @@ module cpu(
     end
 
     always @(posedge clk) begin
+        IF <= IF | {3'b000, interrupts};
+
         if (reg_bus.cs && reg_bus.wr)
             case (reg_bus.addr)
-                REG_IF: IF <= reg_bus.data_wr;
+            REG_IF: IF <= reg_bus.data_wr | {3'b000, interrupts};
                 REG_IE: IE <= reg_bus.data_wr;
             endcase
     end
 
-    // IME
+    // Halt
+    logic halted;
+    logic halt_exit;
+    assign halt_exit = (IE & IF & 'h1F) != 'h00;
+
+    `always_mcycle begin
+        if (ctrl.halt)
+            halted <= 1;
+        else if (halted && ctrl.last_mcycle)
+            halted <= 0;
+    end
+
+    // ISR
     logic IME;
     logic ime_pending;
+
+    logic isr;
+    assign isr = IME && !ime_pending && (IE & IF & 8'h1F) != 8'h00;
+
+    `always_mcycle begin
+        case (ctrl.isr_wb)
+            ISR_WB_IE: Z <= IE;
+            ISR_WB_IF: W <= IF;
+        endcase
+    end
+
+    function automatic logic [4:0] isr_priority_mask(logic [7:0] ie, logic [7:0] flag);
+        logic [4:0] pending;
+        pending = ie[4:0] & flag[4:0];
+        return pending & (~pending + 'd1);
+    endfunction
+
+    function automatic logic [15:0] isr_vector(logic [4:0] mask);
+        case (mask)
+            'b00001: return ISR_VECTOR_VBLANK;
+            'b00010: return ISR_VECTOR_LCD;
+            'b00100: return ISR_VECTOR_TIMER;
+            'b01000: return ISR_VECTOR_SERIAL;
+            'b10000: return ISR_VECTOR_JOYPAD;
+        endcase
+    endfunction
+
+    `always_mcycle begin
+        if (ctrl.isr_ack) begin
+            logic [4:0] mask;
+            mask = isr_priority_mask(Z, W);
+            IF <= IF & ~{3'b000, mask};
+            PC <= isr_vector(mask);
+        end
+    end
 
     `always_mcycle begin
 
@@ -63,6 +113,10 @@ module cpu(
             IME_ACTION_RETI: begin
                 IME <= 1;
                 ime_pending <= 0;
+            end
+            IME_ACTION_ISR: begin 
+                IME <= 0; 
+                ime_pending <= 0; 
             end
         endcase
     end
@@ -95,6 +149,9 @@ module cpu(
         .CC(CC),
         .mcycle(mcycle),
         .cb_prefix(cb_prefix),
+        .isr(isr),
+        .halted(halted),
+        .halt_exit(halt_exit),
         .ctrl(ctrl)
     );
 

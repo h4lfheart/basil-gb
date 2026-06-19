@@ -19,6 +19,8 @@ find_package(verilator HINTS ${VERILATOR_ROOT} REQUIRED)
 
 verilate(basil_gb
     SOURCES
+        ../rtl/util/edge_detect.sv
+
         ../rtl/bus.sv
 
         ../rtl/cart/cart.sv
@@ -33,6 +35,8 @@ verilate(basil_gb
         ../rtl/cpu/cpu.sv
 
         ../rtl/io/serial.sv
+
+        ../rtl/timer/timer.sv
 
         ../rtl/ppu/ppu.sv
 

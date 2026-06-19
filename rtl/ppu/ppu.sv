@@ -19,19 +19,6 @@ typedef struct packed {
     logic [1:0] MODE;
 } stat_t;
 
-localparam logic [15:0] REG_LCDC = 'hFF40;
-localparam logic [15:0] REG_STAT = 'hFF41;
-localparam logic [15:0] REG_SCY = 'hFF42;
-localparam logic [15:0] REG_SCX = 'hFF43;
-localparam logic [15:0] REG_LY = 'hFF44;
-localparam logic [15:0] REG_LYC = 'hFF45;
-localparam logic [15:0] REG_DMA = 'hFF46;
-localparam logic [15:0] REG_BGP = 'hFF47;
-localparam logic [15:0] REG_OBP0 = 'hFF48;
-localparam logic [15:0] REG_OBP1 = 'hFF49;
-localparam logic [15:0] REG_WY = 'hFF4A;
-localparam logic [15:0] REG_WX = 'hFF4B;
-
 module ppu(
     input logic clk,
     input logic rst,

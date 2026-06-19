@@ -91,6 +91,20 @@ package cpu_types;
     `define OP_CB_RES 'b10??????
     `define OP_CB_SET 'b11??????
 
+    localparam logic [15:0] ISR_VECTOR_VBLANK = 'h0040;
+    localparam logic [15:0] ISR_VECTOR_LCD = 'h0048;
+    localparam logic [15:0] ISR_VECTOR_TIMER = 'h0050;
+    localparam logic [15:0] ISR_VECTOR_SERIAL = 'h0058;
+    localparam logic [15:0] ISR_VECTOR_JOYPAD = 'h0060;
+
+    typedef struct packed {
+        logic joypad;
+        logic serial;
+        logic timer;
+        logic stat;
+        logic vblank;
+    } interrupts_t;
+
     typedef enum logic [1:0] {
         T0 = 'd0,
         T1 = 'd1,
@@ -178,6 +192,12 @@ package cpu_types;
         WB_DST_R16,
         WB_DST_PC
     } wb_dst_t;
+
+    typedef enum {
+        ISR_WB_NONE,
+        ISR_WB_IE,
+        ISR_WB_IF
+    } isr_wb_t;
 
     typedef enum {
         ALU_ACTION_NONE,
@@ -317,7 +337,8 @@ package cpu_types;
         IME_ACTION_NONE,
         IME_ACTION_EI,
         IME_ACTION_DI,
-        IME_ACTION_RETI
+        IME_ACTION_RETI,
+        IME_ACTION_ISR
     } ime_action_t;
     
     typedef struct packed {
@@ -361,6 +382,10 @@ package cpu_types;
         alu_dst_t alu_dst;
         alu_z_mod_t alu_z_mod;
 
+        // ISR
+        isr_wb_t isr_wb;
+        logic isr_ack;
+
         // Misc.
         logic last_mcycle;
         logic set_cb_prefix;
@@ -368,6 +393,7 @@ package cpu_types;
         cc_t cc;
         ime_action_t ime_action;
         logic [2:0] rst;
+        logic halt;
 
     } control_t;
 endpackage

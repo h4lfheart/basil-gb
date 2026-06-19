@@ -3,6 +3,9 @@ module cpu_control(
     input logic CC,
     input mcycle_t mcycle,
     input logic cb_prefix,
+    input logic isr,
+    input logic halted,
+    input logic halt_exit,
     output control_t ctrl
 );
 
@@ -280,7 +283,56 @@ module cpu_control(
     always_comb begin
         ctrl = 0;
 
-        if (!cb_prefix) begin
+        if (isr) begin
+            case (mcycle)
+                M0: begin
+                    ctrl.idu_adj = IDU_ADJ_DEC;
+                    ctrl.idu_src = IDU_SRC_PC;
+                    ctrl.idu_dst = IDU_DST_PC;
+
+                    ctrl.ime_action = IME_ACTION_ISR;
+                end
+                M1: begin
+                    // Decrement SP
+                    ctrl.idu_adj = IDU_ADJ_DEC;
+                    ctrl.idu_src = IDU_SRC_R16;
+                    ctrl.idu_src_r16 = R16_SP;
+
+                    ctrl.wb_src = WB_SRC_IDU;
+                    ctrl.wb_dst = WB_DST_R16;
+                    ctrl.wb_r16 = R16_SP;
+                end
+                M2: begin
+                    ctrl.bus_wr = 1;
+                    ctrl.bus_wr_src = BUS_WR_SRC_PCH;
+                    ctrl.bus_wr_dst = BUS_WR_DST_R16;
+                    ctrl.bus_wr_dst_r16 = R16_SP;
+
+                    ctrl.idu_adj = IDU_ADJ_DEC;
+                    ctrl.idu_src = IDU_SRC_R16;
+                    ctrl.idu_src_r16 = R16_SP;
+
+                    ctrl.wb_src = WB_SRC_IDU;
+                    ctrl.wb_dst = WB_DST_R16;
+                    ctrl.wb_r16 = R16_SP;
+
+                    ctrl.isr_wb = ISR_WB_IE;
+                end
+                M3: begin
+                    ctrl.bus_wr = 1;
+                    ctrl.bus_wr_src = BUS_WR_SRC_PCL;
+                    ctrl.bus_wr_dst = BUS_WR_DST_R16;
+                    ctrl.bus_wr_dst_r16 = R16_SP;
+
+                    ctrl.isr_wb = ISR_WB_IF;
+                end
+                M4: begin
+                    ctrl.isr_ack = 1;
+                    ctrl.last_mcycle = 1;
+                end
+            endcase
+        end
+        else if (!cb_prefix) begin
             casez(IR)
                 `OP_NOP: begin
                     ctrl_fetch();
@@ -569,7 +621,11 @@ module cpu_control(
                 end
 
                 `OP_HALT: begin
-                    $finish("Unimplemented HALT instruction.");
+                    if (!halted)
+                        ctrl.halt = 1;
+                    else if (halt_exit) begin
+                        ctrl_fetch();
+                    end
                 end
 
                 `OP_LD_R_R: begin
