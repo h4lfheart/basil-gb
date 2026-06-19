@@ -83,6 +83,7 @@ int run_suite(const std::string& bootrom_path, const std::string& test_dir, cons
 
         std::cout << "\r";
 
+        std::cout << "\r\033[K";
         if (result == TestResult::Passed) {
             passed_roms.push_back(name);
             std::cout << Colors::bold << Colors::green << "PASS"

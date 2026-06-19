@@ -8,6 +8,7 @@
 #include "sim/sim.h"
 #include "testing/runner.h"
 #include "testing/suites/blargg.h"
+#include "testing/suites/mooneye.h"
 
 int main(int argc, char **argv) {
     argparse::ArgumentParser arguments("basil-gb");
@@ -56,6 +57,8 @@ int main(int argc, char **argv) {
         std::unique_ptr<TestSuite> suite;
         if (*test_type == "blargg")
             suite = std::make_unique<BlarggSuite>();
+        else if (*test_type == "mooneye")
+            suite = std::make_unique<MooneyeSuite>();
         else {
             std::cerr << "Error: unknown test suite '" << *test_type << "'\n";
             return 1;
