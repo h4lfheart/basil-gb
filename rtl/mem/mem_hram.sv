@@ -5,7 +5,7 @@ module mem_hram(
     input logic rst,
     bus.child_port bus
 );
-    logic [7:0] hram ['h80];
+    logic [7:0] hram ['h80] /*verilator public*/;
 
     always_comb begin
         bus.data_rd = 8'hFF;

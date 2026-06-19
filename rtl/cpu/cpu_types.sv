@@ -3,8 +3,13 @@ package cpu_types;
     `define OP_NOP 'b00000000
 
     `define OP_CALL_NN 'b11001101
+    `define OP_CALL_CC_NN 'b110??100
     `define OP_JR_E 'b00011000
     `define OP_JR_CC_E 'b001??000
+    `define OP_JP_NN 'b11000011
+    `define OP_JP_HL 'b11101001
+    `define OP_JP_CC_NN 'b110??010
+    `define OP_RST 'b11???111
 
     `define OP_INC_RR 'b00??0011
     `define OP_DEC_RR 'b00??1011
@@ -16,6 +21,11 @@ package cpu_types;
     `define OP_HALT 'b01110110
     `define OP_LD_R_N 'b00???110
     `define OP_LD_NN_A 'b11101010
+    `define OP_LD_NN_SP 'b00001000
+    `define OP_LD_A_NN 'b11111010
+    `define OP_LD_SP_HL 'b11111001
+    `define OP_LD_HL_SP_E 'b11111000
+    `define OP_ADD_SP_E 'b11101000
 
     `define OP_LD_RR_NN 'b00??0001
     `define OP_LD_RR_MEM_A 'b00??0010
@@ -29,17 +39,42 @@ package cpu_types;
     `define OP_LDH_N_A 'b11100000
     `define OP_LDH_C_A 'b11100010
     `define OP_LDH_A_N 'b11110000
+    `define OP_LDH_A_C 'b11110010
 
+    `define OP_ADD_HL_RR 'b00??1001
+
+    `define OP_CPL 'b00101111
+    `define OP_CCF 'b00111111
+    `define OP_SCF 'b00110111
+    `define OP_DAA 'b00100111
+
+    `define OP_ADD_R 'b10000???
     `define OP_SUB_R 'b10010???
     `define OP_CP_R 'b10111???
+    `define OP_AND_R 'b10100???
+    `define OP_OR_R 'b10110???
     `define OP_XOR_R 'b10101???
+    `define OP_ADC_R 'b10001???
+    `define OP_SBC_R 'b10011???
 
+    `define OP_ADD_N 'b11000110
+    `define OP_AND_N 'b11100110
     `define OP_CP_N 'b11111110
+    `define OP_ADC_N 'b11001110
+    `define OP_SUB_N 'b11010110
+    `define OP_SBC_N 'b11011110
+    `define OP_XOR_N 'b11101110
+    `define OP_OR_N  'b11110110
 
     `define OP_RET 'b11001001
+    `define OP_RET_CC 'b110??000
+    `define OP_RETI 'b11011001
 
     `define OP_PUSH_RR 'b11??0101
     `define OP_POP_RR 'b11??0001
+
+    `define OP_DI 'b11110011
+    `define OP_EI 'b11111011
 
     `define OP_CB 'b11001011
 
@@ -77,7 +112,8 @@ package cpu_types;
         BUS_RD_SRC_PC,
         BUS_RD_SRC_WZ,
         BUS_RD_SRC_R16,
-        BUS_RD_SRC_Z
+        BUS_RD_SRC_Z,
+        BUS_RD_SRC_C
     } bus_rd_src_t;
     
     typedef enum {
@@ -89,6 +125,7 @@ package cpu_types;
 
     typedef enum {
         BUS_WR_SRC_NONE,
+        BUS_WR_SRC_Z,
         BUS_WR_SRC_R8,
         BUS_WR_SRC_PCH,
         BUS_WR_SRC_PCL,
@@ -106,7 +143,7 @@ package cpu_types;
     } bus_wr_dst_t;
 
     typedef enum {
-        ID_ADJ_NONE,
+        IDU_ADJ_NONE,
         IDU_ADJ_INC,
         IDU_ADJ_DEC,
         IDU_ADJ_CARRY
@@ -123,6 +160,7 @@ package cpu_types;
     typedef enum {
         IDU_DST_NONE,
         IDU_DST_PC,
+        IDU_DST_WZ,
         IDU_DST_W
     } idu_dst_t;
 
@@ -130,7 +168,8 @@ package cpu_types;
         WB_SRC_NONE,
         WB_SRC_WZ,
         WB_SRC_ALU,
-        WB_SRC_IDU
+        WB_SRC_IDU,
+        WB_SRC_RST
     } wb_src_t;
 
     typedef enum {
@@ -151,8 +190,17 @@ package cpu_types;
         ALU_ACTION_DEC,
 
         ALU_ACTION_ADD,
+        ALU_ACTION_ADC,
         ALU_ACTION_SUB,
+        ALU_ACTION_SBC,
         ALU_ACTION_XOR,
+        ALU_ACTION_AND,
+        ALU_ACTION_OR,
+
+        ALU_ACTION_CPL,
+        ALU_ACTION_CCF,
+        ALU_ACTION_SCF,
+        ALU_ACTION_DAA,
             
         ALU_ACTION_RLC,
         ALU_ACTION_RRC,
@@ -170,12 +218,16 @@ package cpu_types;
         ALU_SRC_NONE,
         ALU_SRC_R8,
         ALU_SRC_Z,
-        ALU_SRC_PCL
+        ALU_SRC_PCL,
+        ALU_SRC_R16L,
+        ALU_SRC_R16H,
+        ALU_SRC_Z_SIGN_EXT
     } alu_src_t;
 
     typedef enum {
         ALU_DST_NONE,
-        ALU_DST_Z
+        ALU_DST_Z,
+        ALU_DST_W
     } alu_dst_t;
 
     typedef enum {
@@ -260,6 +312,13 @@ package cpu_types;
         CC_NC = 2'd2,
         CC_C = 2'd3
     } cc_t;
+
+    typedef enum {
+        IME_ACTION_NONE,
+        IME_ACTION_EI,
+        IME_ACTION_DI,
+        IME_ACTION_RETI
+    } ime_action_t;
     
     typedef struct packed {
 
@@ -296,6 +355,8 @@ package cpu_types;
         alu_src_t alu_b_src;
         r8_t alu_a_r8;
         r8_t alu_b_r8;
+        r16_t alu_a_r16;
+        r16_t alu_b_r16;
         logic [2:0] alu_bit;
         alu_dst_t alu_dst;
         alu_z_mod_t alu_z_mod;
@@ -303,7 +364,10 @@ package cpu_types;
         // Misc.
         logic fetch_cycle;
         logic set_cb_prefix;
+        logic z_sign;
         cc_t cc;
+        ime_action_t ime_action;
+        logic [2:0] rst;
 
     } control_t;
 endpackage

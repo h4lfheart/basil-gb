@@ -69,12 +69,46 @@ module cpu_alu(
                 flags.h = half_carry_add8(a, b, 0);
             end
 
+            ALU_ACTION_ADC: begin
+                {flags.c, result} = {1'b0, a} + {1'b0, b} + {1'b0, flags_in.c};
+
+                flags.z = (result == 0);
+                flags.n = 0;
+                flags.h = half_carry_add8(a, b, flags_in.c);
+            end
+
             ALU_ACTION_SUB: begin
                 {flags.c, result} = {1'b0, a} - {1'b0, b};
 
                 flags.z = (result == 0);
                 flags.n = 1;
                 flags.h = half_carry_sub8(a, b, 0);
+            end
+
+            ALU_ACTION_SBC: begin
+                {flags.c, result} = {1'b0, a} - {1'b0, b} - {1'b0, flags_in.c};
+
+                flags.z = (result == 0);
+                flags.n = 1;
+                flags.h = half_carry_sub8(a, b, flags_in.c);
+            end
+
+            ALU_ACTION_AND: begin
+                result = a & b;
+
+                flags.z = (result == 0);
+                flags.n = 0;
+                flags.h = 1;
+                flags.c = 0;
+            end
+
+            ALU_ACTION_OR: begin
+                result = a | b;
+
+                flags.z = (result == 0);
+                flags.n = 0;
+                flags.h = 0;
+                flags.c = 0;
             end
 
             ALU_ACTION_XOR: begin
@@ -84,6 +118,50 @@ module cpu_alu(
                 flags.n = 0;
                 flags.h = 0;
                 flags.c = 0;
+            end
+
+            ALU_ACTION_CPL: begin
+                result = ~a;
+
+                flags.z = flags_in.z;
+                flags.n = 1;
+                flags.h = 1;
+                flags.c = flags_in.c;
+            end
+
+            ALU_ACTION_CCF: begin
+                flags.z = flags_in.z;
+                flags.n = 0;
+                flags.h = 0;
+                flags.c = ~flags_in.c;
+            end
+
+            ALU_ACTION_SCF: begin
+                flags.z = flags_in.z;
+                flags.n = 0;
+                flags.h = 0;
+                flags.c = 1;
+            end
+
+            ALU_ACTION_DAA: begin
+                logic [7:0] adj;
+                logic c_out;
+                adj = 0;
+                c_out = 0;
+
+                if (!flags_in.n) begin
+                    if (flags_in.h || a[3:0] > 4'h9) adj = adj + 8'h06;
+                    if (flags_in.c || a > 8'h99) begin adj = adj + 8'h60; c_out = 1; end
+                end else begin
+                    if (flags_in.h) adj = adj - 8'h06;
+                    if (flags_in.c) begin adj = adj - 8'h60; c_out = 1; end
+                end
+
+                result = a + adj;
+                flags.z = (result == 0);
+                flags.n = flags_in.n;
+                flags.h = 0;
+                flags.c = c_out;
             end
 
             ALU_ACTION_RLC: begin

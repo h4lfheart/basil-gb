@@ -3,10 +3,12 @@ module gameboy(
     input logic rst
 );
     bus cpu_bus();
+    bus cpu_reg_bus();
     cpu cpu(
         .clk(clk),
         .rst(rst),
-        .bus(cpu_bus)
+        .bus(cpu_bus),
+        .reg_bus(cpu_reg_bus)
     );
 
     bus cart_bus();
@@ -37,11 +39,25 @@ module gameboy(
         .bus(vram_bus)
     );
 
+    bus wram_bus();
+    mem_wram wram(
+        .clk(clk),
+        .rst(rst),
+        .bus(wram_bus)
+    );
+
     bus ppu_bus();
     ppu ppu(
         .clk(clk),
         .rst(rst),
         .bus(ppu_bus)
+    );
+
+    bus serial_bus();
+    serial serial(
+        .clk(clk),
+        .rst(rst),
+        .bus(serial_bus)
     );
 
     mmu mmu(
@@ -51,8 +67,11 @@ module gameboy(
         .boot_rom_bus(boot_rom_bus),
         .vram_bus(vram_bus),
         .hram_bus(hram_bus),
+        .wram_bus(wram_bus),
         .cart_bus(cart_bus),
-        .ppu_bus(ppu_bus)
+        .ppu_bus(ppu_bus),
+        .cpu_reg_bus(cpu_reg_bus),
+        .serial_bus(serial_bus)
     );
 
 endmodule

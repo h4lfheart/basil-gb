@@ -5,7 +5,7 @@ module mem_vram(
     input logic rst,
     bus.child_port bus
 );
-    logic [7:0] vram ['h2000];
+    logic [7:0] vram ['h2000] /*verilator public*/;
 
     always_comb begin
         bus.data_rd = 8'hFF;

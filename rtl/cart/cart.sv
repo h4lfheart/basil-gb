@@ -6,7 +6,8 @@ module cart(
     logic [7:0] rom [32768] /*verilator public*/;
 
     always_comb begin
-        bus.data_rd = rom[bus.addr];
+        if (bus.cs && bus.rd) 
+            bus.data_rd = rom[bus.addr];
     end
 
 endmodule
