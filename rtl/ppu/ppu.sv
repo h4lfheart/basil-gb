@@ -56,8 +56,8 @@ module ppu(
             endcase
     end
 
-    always @(posedge clk) begin
-        if (bus.cs && bus.wr)
+    always_ff @(posedge bus.wr) begin
+        if (bus.cs)
             case (bus.addr)
                 REG_LCDC: LCDC <= bus.data_wr;
                 REG_STAT: STAT <= {bus.data_wr[7:3], STAT[2:0]};

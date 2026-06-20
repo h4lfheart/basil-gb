@@ -27,8 +27,8 @@ module timer(
             endcase
     end
 
-    always @(posedge clk) begin
-        if (bus.cs && bus.wr)
+    always_ff @(posedge bus.wr) begin
+        if (bus.cs)
             case (bus.addr)
                 REG_DIV: DIV <= 'h0000;
                 REG_TIMA: TIMA <= bus.data_wr;

@@ -20,16 +20,12 @@ module serial(
         end
     end
 
-    logic wr_prev;
-    always_ff @(posedge clk or posedge rst) begin
-        wr_prev <= bus.cs && bus.wr;
-
-        if (bus.cs && bus.wr) begin
+    always_ff @(posedge bus.wr) begin
+        if (bus.cs) begin
             case (bus.addr)
                 REG_SB: begin
                     SB <= bus.data_wr;
-                    if (bus.wr != wr_prev)
-                        serial_putchar(bus.data_wr);
+                    serial_putchar(bus.data_wr);
                 end
                 REG_SC: SC <= bus.data_wr;
             endcase

@@ -14,8 +14,8 @@ module mem_hram(
             bus.data_rd = hram[bus.addr - HRAM_START];
     end
 
-    always_ff @(posedge clk) begin
-        if (bus.cs && bus.wr)
+    always_ff @(posedge bus.wr) begin
+        if (bus.cs)
             hram[bus.addr - HRAM_START] <= bus.data_wr;
     end
 

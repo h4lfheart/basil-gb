@@ -37,6 +37,34 @@ TestResult run_rom(const std::string& bootrom_path, const std::string& rom_path,
     return TestResult::Failed;
 }
 
+static TestResult run_rom_with_status(const std::string& bootrom_path, const std::string& rom_path, const std::string& name, const TestSuite& suite, double& elapsed_out) {
+    std::atomic<bool> running(true);
+    auto t0 = std::chrono::steady_clock::now();
+
+    std::thread timer([&]() {
+        while (running.load()) {
+            double elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+            char elapsed_str[32];
+            std::snprintf(elapsed_str, sizeof(elapsed_str), "%.3fs", elapsed);
+            std::cout << "\r" << Colors::bold << Colors::yellow << "RUNNING"
+                      << Colors::reset
+                      << Colors::gray << " [" << elapsed_str << "] "
+                      << Colors::reset << name << std::flush;
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+    });
+
+    auto result = run_rom(bootrom_path, rom_path, suite);
+
+    running.store(false);
+    timer.join();
+
+    elapsed_out = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+
+    std::cout << "\r\033[K";
+    return result;
+}
+
 int run_suite(const std::string& bootrom_path, const std::string& test_dir, const std::string& suite_name, const TestSuite& suite) {
     serial_echo = false;
 
@@ -55,35 +83,12 @@ int run_suite(const std::string& bootrom_path, const std::string& test_dir, cons
 
         const std::string name = p.filename().string();
 
-        std::atomic<bool> running(true);
-        auto t0 = std::chrono::steady_clock::now();
-
-        std::thread timer([&]() {
-            while (running.load()) {
-                double elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
-                char elapsed_str[32];
-                std::snprintf(elapsed_str, sizeof(elapsed_str), "%.3fs", elapsed);
-                std::cout << "\r" << Colors::bold << Colors::yellow << "RUNNING"
-                          << Colors::reset
-                          << Colors::gray << " [" << elapsed_str << "] "
-                          << Colors::reset << name << std::flush;
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            }
-        });
-
-        auto result = run_rom(bootrom_path, p.string(), suite);
-
-        running.store(false);
-        timer.join();
-
-        double elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+        double elapsed = 0.0;
+        auto result = run_rom_with_status(bootrom_path, p.string(), name, suite, elapsed);
 
         char elapsed_str[32];
         std::snprintf(elapsed_str, sizeof(elapsed_str), "%.3fs", elapsed);
 
-        std::cout << "\r";
-
-        std::cout << "\r\033[K";
         if (result == TestResult::Passed) {
             passed_roms.push_back(name);
             std::cout << Colors::bold << Colors::green << "PASS"
@@ -118,4 +123,38 @@ int run_suite(const std::string& bootrom_path, const std::string& test_dir, cons
               << failed_roms.size() << " failed" << Colors::reset << "\n";
 
     return failed_roms.empty() ? 0 : 1;
+}
+
+int run_single(const std::string& bootrom_path, const std::string& rom_path, const std::string& suite_name, const TestSuite& suite) {
+    serial_echo = false;
+
+    const std::string name = fs::path(rom_path).filename().string();
+
+    std::cout << Colors::bold
+              << "Running " << suite_name << " test " << name
+              << Colors::reset << "\n\n";
+
+    double elapsed = 0.0;
+    auto result = run_rom_with_status(bootrom_path, rom_path, name, suite, elapsed);
+
+    char elapsed_str[32];
+    std::snprintf(elapsed_str, sizeof(elapsed_str), "%.3fs", elapsed);
+
+    if (result == TestResult::Passed) {
+        std::cout << Colors::bold << Colors::green << "PASS"
+                  << Colors::reset
+                  << Colors::gray << " [" << elapsed_str << "] "
+                  << Colors::reset << name << "\n";
+        return 0;
+    }
+
+    std::cout << Colors::bold << Colors::red << "FAIL"
+              << Colors::reset
+              << Colors::gray << " [" << elapsed_str << "] "
+              << Colors::reset << name << "\n";
+
+    for (const auto& line : suite.extract_failure_info(serial_buffer))
+        std::cout << Colors::gray << "  " << line << Colors::reset << "\n";
+
+    return 1;
 }

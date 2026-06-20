@@ -86,19 +86,17 @@ module mmu (
         end
     end
 
-    always_comb begin
-        if (cpu_bus.wr) begin
-            if (cs_boot_rom);
-            else if (cs_cart);
-            else if (cs_vram);
-            else if (cs_wram);
-            else if (cs_hram);
-            else if (cs_ppu);
-            else if (cs_cpu_reg);
-            else if (cs_serial);
-            else if (cs_timer);
-            //else $display("Invalid write at 0x%0h", cpu_bus.addr);
-        end
+    always_ff @(posedge cpu_bus.wr) begin
+        if (cs_boot_rom);
+        else if (cs_cart);
+        else if (cs_vram);
+        else if (cs_wram);
+        else if (cs_hram);
+        else if (cs_ppu);
+        else if (cs_cpu_reg);
+        else if (cs_serial);
+        else if (cs_timer);
+        //else $display("Invalid write at 0x%0h", cpu_bus.addr);
     end
 
 endmodule

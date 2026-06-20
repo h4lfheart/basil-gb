@@ -34,12 +34,13 @@ module cpu(
             endcase
     end
 
-    always @(posedge clk) begin
+    always_ff @(posedge clk)
         IF <= IF | {3'b000, interrupts};
 
-        if (reg_bus.cs && reg_bus.wr)
+    always_ff @(posedge reg_bus.wr) begin
+        if (reg_bus.cs)
             case (reg_bus.addr)
-            REG_IF: IF <= reg_bus.data_wr | {3'b000, interrupts};
+                REG_IF: IF <= reg_bus.data_wr | {3'b000, interrupts};
                 REG_IE: IE <= reg_bus.data_wr;
             endcase
     end

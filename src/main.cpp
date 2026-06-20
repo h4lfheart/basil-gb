@@ -27,6 +27,9 @@ int main(int argc, char **argv) {
     arguments.add_argument("--test-dir")
         .help("Directory of ROMs to run as a test suite (requires --test).");
 
+    arguments.add_argument("--test-file")
+        .help("Single ROM to run as a test (requires --test).");
+
     arguments.add_argument("--trace")
         .help("Path to write a VCD trace file (single-ROM mode only).");
 
@@ -46,11 +49,17 @@ int main(int argc, char **argv) {
     auto bootrom_path = arguments.get<std::string>("bootrom");
     auto test_type = arguments.present<std::string>("--test");
     auto test_dir  = arguments.present<std::string>("--test-dir");
+    auto test_file = arguments.present<std::string>("--test-file");
 
-    // ── Test suite mode ──────────────────────────────────────────────────────
-    if (test_type || test_dir) {
-        if (!test_type || !test_dir) {
-            std::cerr << "Error: --test and --test-dir must be used together\n";
+    // test suite
+    if (test_type || test_dir || test_file) {
+        if (!test_type || (!test_dir && !test_file)) {
+            std::cerr << "Error: --test must be used together with --test-dir or --test-file\n";
+            return 1;
+        }
+
+        if (test_dir && test_file) {
+            std::cerr << "Error: --test-dir and --test-file cannot be used together\n";
             return 1;
         }
 
@@ -64,10 +73,13 @@ int main(int argc, char **argv) {
             return 1;
         }
 
+        if (test_file)
+            return run_single(bootrom_path, *test_file, *test_type, *suite);
+
         return run_suite(bootrom_path, *test_dir, *test_type, *suite);
     }
 
-    // ── Single ROM mode ──────────────────────────────────────────────────────
+    // single rom
     auto rom_path_opt = arguments.present<std::string>("rom");
     if (!rom_path_opt) {
         std::cerr << "Error: a rom path is required when not using --test\n" << arguments;
