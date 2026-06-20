@@ -7,37 +7,49 @@
 #include <chrono>
 #include <thread>
 #include <atomic>
+#include <memory>
 
+#include "verilated_vcd_c.h"
 #include "../sim/sim.h"
 #include "../colors.h"
 
 namespace fs = std::filesystem;
 
-TestResult run_rom(const std::string& bootrom_path, const std::string& rom_path, const TestSuite& suite) {
+TestResult run_rom(const std::string& bootrom_path, const std::string& rom_path, const TestSuite& suite, const std::string& trace_path, uint64_t trace_start) {
     serial_buffer.clear();
     serial_dirty = false;
 
     Simulation sim;
     sim.load_bootrom(bootrom_path);
     sim.load_rom(rom_path);
-    sim.reset();
 
+    std::unique_ptr<VerilatedVcdC> vcd;
+    if (!trace_path.empty()) {
+        vcd = std::make_unique<VerilatedVcdC>();
+        sim.open_trace(trace_path, *vcd);
+    }
+
+    sim.reset(vcd.get(), trace_start);
+
+    TestResult result = TestResult::Failed;
     while (!sim.finished()) {
-        sim.clock_cycle();
+        sim.clock_cycle(vcd.get(), trace_start);
         if (serial_dirty) {
             serial_dirty = false;
             switch (suite.detect(serial_buffer)) {
-                case TestStatus::Passed: return TestResult::Passed;
-                case TestStatus::Failed: return TestResult::Failed;
+                case TestStatus::Passed: result = TestResult::Passed; goto done;
+                case TestStatus::Failed: result = TestResult::Failed; goto done;
                 default: break;
             }
         }
     }
 
-    return TestResult::Failed;
+done:
+    if (vcd) vcd->close();
+    return result;
 }
 
-static TestResult run_rom_with_status(const std::string& bootrom_path, const std::string& rom_path, const std::string& name, const TestSuite& suite, double& elapsed_out) {
+static TestResult run_rom_with_status(const std::string& bootrom_path, const std::string& rom_path, const std::string& name, const TestSuite& suite, double& elapsed_out, const std::string& trace_path, uint64_t trace_start) {
     std::atomic<bool> running(true);
     auto t0 = std::chrono::steady_clock::now();
 
@@ -54,7 +66,7 @@ static TestResult run_rom_with_status(const std::string& bootrom_path, const std
         }
     });
 
-    auto result = run_rom(bootrom_path, rom_path, suite);
+    auto result = run_rom(bootrom_path, rom_path, suite, trace_path, trace_start);
 
     running.store(false);
     timer.join();
@@ -65,8 +77,11 @@ static TestResult run_rom_with_status(const std::string& bootrom_path, const std
     return result;
 }
 
-int run_suite(const std::string& bootrom_path, const std::string& test_dir, const std::string& suite_name, const TestSuite& suite) {
+int run_suite(const std::string& bootrom_path, const std::string& test_dir, const std::string& suite_name, const TestSuite& suite, const std::string& trace_dir, uint64_t trace_start) {
     serial_echo = false;
+
+    if (!trace_dir.empty())
+        fs::create_directories(trace_dir);
 
     std::cout << Colors::bold
               << "Running " << suite_name << " tests in " << test_dir
@@ -83,8 +98,12 @@ int run_suite(const std::string& bootrom_path, const std::string& test_dir, cons
 
         const std::string name = p.filename().string();
 
+        std::string trace_path;
+        if (!trace_dir.empty())
+            trace_path = (fs::path(trace_dir) / (p.stem().string() + ".vcd")).string();
+
         double elapsed = 0.0;
-        auto result = run_rom_with_status(bootrom_path, p.string(), name, suite, elapsed);
+        auto result = run_rom_with_status(bootrom_path, p.string(), name, suite, elapsed, trace_path, trace_start);
 
         char elapsed_str[32];
         std::snprintf(elapsed_str, sizeof(elapsed_str), "%.3fs", elapsed);
@@ -125,17 +144,23 @@ int run_suite(const std::string& bootrom_path, const std::string& test_dir, cons
     return failed_roms.empty() ? 0 : 1;
 }
 
-int run_single(const std::string& bootrom_path, const std::string& rom_path, const std::string& suite_name, const TestSuite& suite) {
+int run_single(const std::string& bootrom_path, const std::string& rom_path, const std::string& suite_name, const TestSuite& suite, const std::string& trace_dir, uint64_t trace_start) {
     serial_echo = false;
 
     const std::string name = fs::path(rom_path).filename().string();
+
+    std::string trace_path;
+    if (!trace_dir.empty()) {
+        fs::create_directories(trace_dir);
+        trace_path = (fs::path(trace_dir) / (fs::path(rom_path).stem().string() + ".vcd")).string();
+    }
 
     std::cout << Colors::bold
               << "Running " << suite_name << " test " << name
               << Colors::reset << "\n\n";
 
     double elapsed = 0.0;
-    auto result = run_rom_with_status(bootrom_path, rom_path, name, suite, elapsed);
+    auto result = run_rom_with_status(bootrom_path, rom_path, name, suite, elapsed, trace_path, trace_start);
 
     char elapsed_str[32];
     std::snprintf(elapsed_str, sizeof(elapsed_str), "%.3fs", elapsed);

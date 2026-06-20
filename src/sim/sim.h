@@ -25,7 +25,7 @@ struct Simulation {
 
     void load_bootrom(const std::string& path);
     void load_rom(const std::string& path);
-    void reset();
+    void reset(VerilatedVcdC* vcd = nullptr, uint64_t trace_start = 0);
     void clock_cycle(VerilatedVcdC* vcd = nullptr, uint64_t trace_start = 0);
     bool finished() const;
     void open_trace(const std::string& path, VerilatedVcdC& vcd, int depth = 99);

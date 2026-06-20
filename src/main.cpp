@@ -1,6 +1,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <filesystem>
 
 #include "verilated_vcd_c.h"
 #include "argparse/argparse.hpp"
@@ -9,6 +10,8 @@
 #include "testing/runner.h"
 #include "testing/suites/blargg.h"
 #include "testing/suites/mooneye.h"
+
+namespace fs = std::filesystem;
 
 int main(int argc, char **argv) {
     argparse::ArgumentParser arguments("basil-gb");
@@ -22,7 +25,7 @@ int main(int argc, char **argv) {
         .nargs(argparse::nargs_pattern::optional);
 
     arguments.add_argument("--test")
-        .help("Test suite type: blargg");
+        .help("Test suite type: blargg, mooneye");
 
     arguments.add_argument("--test-dir")
         .help("Directory of ROMs to run as a test suite (requires --test).");
@@ -31,7 +34,7 @@ int main(int argc, char **argv) {
         .help("Single ROM to run as a test (requires --test).");
 
     arguments.add_argument("--trace")
-        .help("Path to write a VCD trace file (single-ROM mode only).");
+        .help("Directory to write VCD trace files to (one per ROM, named <rom>.vcd).");
 
     arguments.add_argument("--trace-start")
         .help("Cycle time at which to start tracing.")
@@ -50,6 +53,10 @@ int main(int argc, char **argv) {
     auto test_type = arguments.present<std::string>("--test");
     auto test_dir  = arguments.present<std::string>("--test-dir");
     auto test_file = arguments.present<std::string>("--test-file");
+    auto trace_dir = arguments.present<std::string>("--trace");
+    auto trace_start = arguments.get<uint64_t>("--trace-start");
+
+    const std::string trace_dir_arg = trace_dir ? *trace_dir : "";
 
     // test suite
     if (test_type || test_dir || test_file) {
@@ -74,9 +81,9 @@ int main(int argc, char **argv) {
         }
 
         if (test_file)
-            return run_single(bootrom_path, *test_file, *test_type, *suite);
+            return run_single(bootrom_path, *test_file, *test_type, *suite, trace_dir_arg, trace_start);
 
-        return run_suite(bootrom_path, *test_dir, *test_type, *suite);
+        return run_suite(bootrom_path, *test_dir, *test_type, *suite, trace_dir_arg, trace_start);
     }
 
     // single rom
@@ -91,14 +98,14 @@ int main(int argc, char **argv) {
     sim.load_rom(*rom_path_opt);
 
     std::unique_ptr<VerilatedVcdC> vcd;
-    if (auto trace_path = arguments.present<std::string>("--trace")) {
+    if (!trace_dir_arg.empty()) {
+        fs::create_directories(trace_dir_arg);
+        std::string trace_path = (fs::path(trace_dir_arg) / (fs::path(*rom_path_opt).stem().string() + ".vcd")).string();
         vcd = std::make_unique<VerilatedVcdC>();
-        sim.open_trace(*trace_path, *vcd);
+        sim.open_trace(trace_path, *vcd);
     }
 
-    auto trace_start = arguments.get<uint64_t>("--trace-start");
-
-    sim.reset();
+    sim.reset(vcd.get(), trace_start);
 
     while (!sim.finished())
         sim.clock_cycle(vcd.get(), trace_start);

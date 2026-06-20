@@ -26,13 +26,13 @@ module ppu(
 );
 
     // Registers
-    lcdc_t LCDC;
+    lcdc_t LCDC /* verilator public */;
     stat_t STAT;
-    logic [7:0] SCY;
-    logic [7:0] SCX;
+    logic [7:0] SCY /*verilator public*/;
+    logic [7:0] SCX /*verilator public*/;
     logic [7:0] LY;
     logic [7:0] LYC;
-    logic [7:0] BGP;
+    logic [7:0] BGP /*verilator public*/;
     logic [7:0] OBP0;
     logic [7:0] OBP1;
     logic [7:0] WY;

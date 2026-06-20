@@ -54,10 +54,10 @@ void Simulation::load_rom(const std::string& path) {
     load_file(path, gb->gameboy->cart->rom, 32768);
 }
 
-void Simulation::reset() {
+void Simulation::reset(VerilatedVcdC* vcd, uint64_t trace_start) {
     gb->rst = 1;
-    clock_cycle();
-    clock_cycle();
+    clock_cycle(vcd, trace_start);
+    clock_cycle(vcd, trace_start);
     gb->rst = 0;
 }
 
