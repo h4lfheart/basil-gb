@@ -15,8 +15,8 @@ module mem_vram(
     end
 
     
-    always_ff @(posedge bus.wr) begin
-        if (bus.cs)
+    always_ff @(posedge clk) begin
+        if (bus.cs && bus.wr)
             vram[bus.addr - VRAM_START] <= bus.data_wr;
     end
 

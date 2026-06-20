@@ -127,7 +127,8 @@ package cpu_types;
         BUS_RD_SRC_WZ,
         BUS_RD_SRC_R16,
         BUS_RD_SRC_Z,
-        BUS_RD_SRC_C
+        BUS_RD_SRC_C,
+        BUS_RD_SRC_ISR
     } bus_rd_src_t;
     
     typedef enum {
@@ -183,7 +184,8 @@ package cpu_types;
         WB_SRC_WZ,
         WB_SRC_ALU,
         WB_SRC_IDU,
-        WB_SRC_RST
+        WB_SRC_RST,
+        WB_SRC_ISR
     } wb_src_t;
 
     typedef enum {

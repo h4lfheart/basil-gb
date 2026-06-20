@@ -22,8 +22,8 @@ module mem_wram(
             bus.data_rd = wram[bank_sel(bus.addr)][bus.addr[11:0]];
     end
 
-    always_ff @(posedge bus.wr)
-        if (bus.cs)
+    always_ff @(posedge clk)
+        if (bus.cs && bus.wr)
             wram[bank_sel(bus.addr)][bus.addr[11:0]] <= bus.data_wr;
 
 endmodule

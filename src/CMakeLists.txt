@@ -3,14 +3,42 @@ project(basil_gb CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 
+find_package(SDL2 REQUIRED)
+find_package(OpenGL REQUIRED)
+
+if(WIN32)
+    set(APP_RC app.rc)
+endif()
+
 add_executable(basil_gb
     main.cpp
     sim/sim.cpp
     testing/runner.cpp
+    debug/debug_ui.cpp
+    ${APP_RC}
+)
+
+set(IMGUI_DIR ${CMAKE_SOURCE_DIR}/../external/imgui)
+
+target_sources(basil_gb PRIVATE
+    ${IMGUI_DIR}/imgui.cpp
+    ${IMGUI_DIR}/imgui_draw.cpp
+    ${IMGUI_DIR}/imgui_tables.cpp
+    ${IMGUI_DIR}/imgui_widgets.cpp
+    ${IMGUI_DIR}/backends/imgui_impl_sdl2.cpp
+    ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
 )
 
 target_include_directories(basil_gb PRIVATE
     ${CMAKE_SOURCE_DIR}/../external/argparse/include
+    ${IMGUI_DIR}
+    ${IMGUI_DIR}/backends
+    ${SDL2_INCLUDE_DIRS}
+)
+
+target_link_libraries(basil_gb PRIVATE
+    ${SDL2_LIBRARIES}
+    OpenGL::GL
 )
 
 target_compile_options(basil_gb PRIVATE -O3)

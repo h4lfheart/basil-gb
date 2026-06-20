@@ -20,8 +20,8 @@ module serial(
         end
     end
 
-    always_ff @(posedge bus.wr) begin
-        if (bus.cs) begin
+    always_ff @(posedge clk) begin
+        if (bus.cs && bus.wr) begin
             case (bus.addr)
                 REG_SB: begin
                     SB <= bus.data_wr;

@@ -22,7 +22,8 @@ typedef struct packed {
 module ppu(
     input logic clk,
     input logic rst,
-    bus.child_port bus
+    bus.child_port bus,
+    output logic vblank_interrupt
 );
 
     // Registers
@@ -30,7 +31,7 @@ module ppu(
     stat_t STAT;
     logic [7:0] SCY /*verilator public*/;
     logic [7:0] SCX /*verilator public*/;
-    logic [7:0] LY;
+    logic [7:0] LY /*verilator public*/;
     logic [7:0] LYC;
     logic [7:0] BGP /*verilator public*/;
     logic [7:0] OBP0;
@@ -56,8 +57,8 @@ module ppu(
             endcase
     end
 
-    always_ff @(posedge bus.wr) begin
-        if (bus.cs)
+     always @(posedge clk) begin
+        if (bus.cs && bus.wr)
             case (bus.addr)
                 REG_LCDC: LCDC <= bus.data_wr;
                 REG_STAT: STAT <= {bus.data_wr[7:3], STAT[2:0]};
@@ -78,10 +79,15 @@ module ppu(
         if (rst) begin
             dot <= 0;
             LY <= 0;
+            vblank_interrupt <= 0;
         end else if (LCDC.EN) begin
+            vblank_interrupt <= 0;
             if (dot == 'd455) begin
                 dot <= 0;
                 LY <= (LY == 'd153) ? 0 : LY + 1;
+
+                if (LY == 'd143)
+                    vblank_interrupt <= 1;
             end 
             else begin
                 dot <= dot + 1;

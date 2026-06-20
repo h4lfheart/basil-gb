@@ -39,10 +39,10 @@ module cpu_bus_controller(
                     bus.data_wr <= data_wr;
                 end
                 T2: begin
-                    // idle
+                    bus.wr <= 0;
                 end
                 T3: begin
-                    bus.wr <= 0;
+                    // idle
                 end
             endcase
         end

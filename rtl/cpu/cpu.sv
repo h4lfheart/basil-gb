@@ -16,15 +16,15 @@ module cpu(
     cpu_clock clock(
         .clk(clk),
         .rst(rst),
-    .rst_mcycle(ctrl.last_mcycle),
+        .rst_mcycle(ctrl.last_mcycle),
         .tcycle(tcycle),
         .mcycle(mcycle)
     );
 
-    // Registers
-    logic [7:0] IE;
-    logic [7:0] IF;
-
+    // Bus Registers
+    logic [7:0] IE /* verilator public */;
+    logic [7:0] IF /* verilator public */;
+    
     always_comb begin
         reg_bus.data_rd = 'hFF;
         if (reg_bus.cs && reg_bus.rd)
@@ -34,15 +34,15 @@ module cpu(
             endcase
     end
 
-    always_ff @(posedge clk)
+    always @(posedge clk) begin
         IF <= IF | {3'b000, interrupts};
 
-    always_ff @(posedge reg_bus.wr) begin
-        if (reg_bus.cs)
+        if (reg_bus.cs && reg_bus.wr) begin
             case (reg_bus.addr)
                 REG_IF: IF <= reg_bus.data_wr | {3'b000, interrupts};
                 REG_IE: IE <= reg_bus.data_wr;
             endcase
+        end
     end
 
     // Halt
@@ -58,11 +58,34 @@ module cpu(
     end
 
     // ISR
-    logic IME;
-    logic ime_pending;
 
-    logic isr;
-    assign isr = IME && !ime_pending && (IE & IF & 8'h1F) != 8'h00;
+    logic IME /* verilator public */;
+    logic ime_pending;
+    logic isr_active;
+
+    function automatic logic [4:0] isr_priority_mask(logic [7:0] ie, logic [7:0] flag);
+        logic [4:0] p;
+        p = ie[4:0] & flag[4:0];
+        return p & (~p + 5'd1);
+    endfunction
+
+    function automatic logic [15:0] isr_vector(logic [4:0] mask);
+        case (mask)
+            5'b00001: return ISR_VECTOR_VBLANK;
+            5'b00010: return ISR_VECTOR_LCD;
+            5'b00100: return ISR_VECTOR_TIMER;
+            5'b01000: return ISR_VECTOR_SERIAL;
+            5'b10000: return ISR_VECTOR_JOYPAD;
+            default: return ISR_VECTOR_VBLANK;
+        endcase
+    endfunction
+
+    `always_mcycle begin
+        if (isr_active && ctrl.last_mcycle)
+            isr_active <= 0;
+        else if (!isr_active && ctrl.last_mcycle && IME && (IE & IF & 8'h1F) != 0)
+            isr_active <= 1;
+    end
 
     `always_mcycle begin
         case (ctrl.isr_wb)
@@ -71,33 +94,13 @@ module cpu(
         endcase
     end
 
-    function automatic logic [4:0] isr_priority_mask(logic [7:0] ie, logic [7:0] flag);
-        logic [4:0] pending;
-        pending = ie[4:0] & flag[4:0];
-        return pending & (~pending + 'd1);
-    endfunction
-
-    function automatic logic [15:0] isr_vector(logic [4:0] mask);
-        case (mask)
-            'b00001: return ISR_VECTOR_VBLANK;
-            'b00010: return ISR_VECTOR_LCD;
-            'b00100: return ISR_VECTOR_TIMER;
-            'b01000: return ISR_VECTOR_SERIAL;
-            'b10000: return ISR_VECTOR_JOYPAD;
-        endcase
-    endfunction
-
     `always_mcycle begin
         if (ctrl.isr_ack) begin
-            logic [4:0] mask;
-            mask = isr_priority_mask(Z, W);
-            IF <= IF & ~{3'b000, mask};
-            PC <= isr_vector(mask);
+            IF <= IF & ~{3'b000, isr_priority_mask(Z, W)};
         end
     end
 
     `always_mcycle begin
-
         if (ime_pending) begin
             IME <= 1;
             ime_pending <= 0;
@@ -115,9 +118,9 @@ module cpu(
                 IME <= 1;
                 ime_pending <= 0;
             end
-            IME_ACTION_ISR: begin 
-                IME <= 0; 
-                ime_pending <= 0; 
+            IME_ACTION_ISR: begin
+                IME <= 0;
+                ime_pending <= 0;
             end
         endcase
     end
@@ -150,7 +153,7 @@ module cpu(
         .CC(CC),
         .mcycle(mcycle),
         .cb_prefix(cb_prefix),
-        .isr(isr),
+        .isr(isr_active),
         .halted(halted),
         .halt_exit(halt_exit),
         .ctrl(ctrl)
@@ -168,6 +171,7 @@ module cpu(
             BUS_RD_SRC_R16: return regfile.read_r16(ctrl.bus_rd_src_r16);
             BUS_RD_SRC_Z: return {'hFF, Z};
             BUS_RD_SRC_C: return {'hFF, regfile.read_r8(R8_C)};
+            BUS_RD_SRC_ISR: return isr_vector(isr_priority_mask(Z, W));
         endcase
     endfunction
 
@@ -193,8 +197,7 @@ module cpu(
     endfunction
 
     always_comb begin
-        bus_addr = ctrl.bus_wr ? bus_wr_addr_sel(ctrl.bus_wr_dst)
-                               : bus_rd_addr_sel(ctrl.bus_rd_src);
+        bus_addr = ctrl.bus_wr ? bus_wr_addr_sel(ctrl.bus_wr_dst) : bus_rd_addr_sel(ctrl.bus_rd_src);
         bus_data_wr = bus_wr_data_sel(ctrl.bus_wr_src);
     end
 
@@ -202,8 +205,8 @@ module cpu(
         if (ctrl.bus_rd) begin
             case (ctrl.bus_rd_dst)
                 BUS_RD_DST_IR: IR <= bus_data_rd;
-                BUS_RD_DST_Z:  Z  <= bus_data_rd;
-                BUS_RD_DST_W:  W  <= bus_data_rd;
+                BUS_RD_DST_Z: Z  <= bus_data_rd;
+                BUS_RD_DST_W: W  <= bus_data_rd;
             endcase
         end
     end
@@ -220,8 +223,8 @@ module cpu(
     );
 
     // Registers
-    logic [15:0] PC;
-    logic [7:0] IR;
+    logic [15:0] PC /* verilator public */;
+    logic [7:0] IR /* verilator public */;
 
     logic [7:0] Z;
     logic [7:0] W;
@@ -264,6 +267,7 @@ module cpu(
             WB_SRC_ALU: return alu_result;
             WB_SRC_IDU: return idu_out;
             WB_SRC_RST: return rst_vector(ctrl.rst);
+            WB_SRC_ISR: return isr_vector(isr_priority_mask(Z, W)) + 1;
         endcase
     endfunction
 

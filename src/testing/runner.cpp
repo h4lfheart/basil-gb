@@ -42,6 +42,7 @@ TestResult run_rom(const std::string& bootrom_path, const std::string& rom_path,
                 default: break;
             }
         }
+        
     }
 
 done:

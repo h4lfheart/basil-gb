@@ -10,7 +10,7 @@
 #include "Vgameboy__Dpi.h"
 
 std::string serial_buffer;
-bool serial_echo = true;
+bool serial_echo = false;
 bool serial_dirty = false;
 
 extern "C" void serial_putchar(unsigned char c) {

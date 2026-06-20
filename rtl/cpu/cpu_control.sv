@@ -293,7 +293,6 @@ module cpu_control(
                     ctrl.ime_action = IME_ACTION_ISR;
                 end
                 M1: begin
-                    // Decrement SP
                     ctrl.idu_adj = IDU_ADJ_DEC;
                     ctrl.idu_src = IDU_SRC_R16;
                     ctrl.idu_src_r16 = R16_SP;
@@ -327,8 +326,16 @@ module cpu_control(
                     ctrl.isr_wb = ISR_WB_IF;
                 end
                 M4: begin
-                    ctrl.isr_ack = 1;
+                    ctrl.bus_rd = 1;
+                    ctrl.bus_rd_src = BUS_RD_SRC_ISR;
+                    ctrl.bus_rd_dst = BUS_RD_DST_IR;
+
+                    ctrl.wb_src = WB_SRC_ISR;
+                    ctrl.wb_dst = WB_DST_PC;
+
                     ctrl.last_mcycle = 1;
+
+                    ctrl.isr_ack = 1;
                 end
             endcase
         end

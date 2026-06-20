@@ -14,7 +14,7 @@ module gameboy(
             serial: 0,
             timer: timer_interrupt,
             stat: 0,
-            vblank: 0
+            vblank: vblank_interrupt
         })
 
     );
@@ -55,10 +55,12 @@ module gameboy(
     );
 
     bus ppu_bus();
+    logic vblank_interrupt;
     ppu ppu(
         .clk(clk),
         .rst(rst),
-        .bus(ppu_bus)
+        .bus(ppu_bus),
+        .vblank_interrupt(vblank_interrupt)
     );
 
     bus serial_bus();

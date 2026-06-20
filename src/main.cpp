@@ -2,6 +2,7 @@
 #include <memory>
 #include <string>
 #include <filesystem>
+#include <chrono>
 
 #include "verilated_vcd_c.h"
 #include "argparse/argparse.hpp"
@@ -10,8 +11,13 @@
 #include "testing/runner.h"
 #include "testing/suites/blargg.h"
 #include "testing/suites/mooneye.h"
+#include "debug/debug_ui.h"
 
 namespace fs = std::filesystem;
+
+static constexpr double GB_CLOCK_HZ = 4194304.0;
+static constexpr double FRAME_HZ = 60.0;
+static constexpr uint64_t CYCLES_PER_FRAME = static_cast<uint64_t>(GB_CLOCK_HZ / FRAME_HZ);
 
 int main(int argc, char **argv) {
     argparse::ArgumentParser arguments("basil-gb");
@@ -51,14 +57,13 @@ int main(int argc, char **argv) {
 
     auto bootrom_path = arguments.get<std::string>("bootrom");
     auto test_type = arguments.present<std::string>("--test");
-    auto test_dir  = arguments.present<std::string>("--test-dir");
+    auto test_dir = arguments.present<std::string>("--test-dir");
     auto test_file = arguments.present<std::string>("--test-file");
     auto trace_dir = arguments.present<std::string>("--trace");
     auto trace_start = arguments.get<uint64_t>("--trace-start");
 
     const std::string trace_dir_arg = trace_dir ? *trace_dir : "";
 
-    // test suite
     if (test_type || test_dir || test_file) {
         if (!test_type || (!test_dir && !test_file)) {
             std::cerr << "Error: --test must be used together with --test-dir or --test-file\n";
@@ -86,7 +91,6 @@ int main(int argc, char **argv) {
         return run_suite(bootrom_path, *test_dir, *test_type, *suite, trace_dir_arg, trace_start);
     }
 
-    // single rom
     auto rom_path_opt = arguments.present<std::string>("rom");
     if (!rom_path_opt) {
         std::cerr << "Error: a rom path is required when not using --test\n" << arguments;
@@ -107,11 +111,42 @@ int main(int argc, char **argv) {
 
     sim.reset(vcd.get(), trace_start);
 
-    while (!sim.finished())
-        sim.clock_cycle(vcd.get(), trace_start);
+    DebugUI ui;
+    if (!ui.init("basil-gb", 1280, 720)) {
+        std::cerr << "Failed to initialize debug UI\n";
+        return 1;
+    }
+
+    using clock = std::chrono::steady_clock;
+    auto frame_duration = std::chrono::duration<double>(1.0 / FRAME_HZ);
+    auto next_frame = clock::now() + frame_duration;
+
+    while (!sim.finished()) {
+        if (!ui.poll_events())
+            break;
+
+        if (!ui.paused) {
+            for (uint64_t i = 0; i < CYCLES_PER_FRAME && !sim.finished(); i++)
+                sim.clock_cycle(vcd.get(), trace_start);
+        } else if (ui.step_mcycle) {
+            for (int i = 0; i < 4 && !sim.finished(); i++)
+                sim.clock_cycle(vcd.get(), trace_start);
+            ui.step_mcycle = false;
+        }
+
+        ui.update_textures(sim);
+        ui.render(sim);
+
+        auto now = clock::now();
+        if (now < next_frame)
+            std::this_thread::sleep_until(next_frame);
+        next_frame += frame_duration;
+    }
 
     if (vcd)
         vcd->close();
+
+    ui.shutdown();
 
     std::cout << "Elapsed cycles: " << sim.clk_time << "\n";
     return 0;
