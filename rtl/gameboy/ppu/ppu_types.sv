@@ -22,8 +22,8 @@ package ppu_types;
     typedef enum logic [1:0] {
         PPU_MODE_HBLANK = 2'd0,
         PPU_MODE_VBLANK = 2'd1,
-        PPU_MODE_OAM    = 2'd2,
-        PPU_MODE_DRAW   = 2'd3
+        PPU_MODE_OAM = 2'd2,
+        PPU_MODE_DRAW = 2'd3
     } ppu_mode_t;
 
 

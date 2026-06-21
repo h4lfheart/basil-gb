@@ -8,15 +8,16 @@ module ppu(
     output logic vblank_interrupt,
     output logic stat_interrupt
 );
+
     logic [1:0] framebuffer [144][160] /* verilator public */;
 
     lcdc_t LCDC /* verilator public */;
     stat_int_t STAT_INT;
-    logic [7:0] SCY /*verilator public*/;
-    logic [7:0] SCX /*verilator public*/;
-    logic [7:0] LY /*verilator public*/;
+    logic [7:0] SCY /* verilator public */;
+    logic [7:0] SCX /* verilator public */;
+    logic [7:0] LY /* verilator public */;
     logic [7:0] LYC;
-    logic [7:0] BGP /*verilator public*/;
+    logic [7:0] BGP /* verilator public */;
     logic [7:0] OBP0;
     logic [7:0] OBP1;
     logic [7:0] WY;
@@ -60,17 +61,27 @@ module ppu(
     ppu_mode_t mode;
     logic lyc_match;
     logic draw_done;
+    logic [7:0] WLY;
+    logic win_y_condition;
+    logic win_line_tick;
 
-    ppu_state ppu_state_inst(
+    logic line_start;
+    assign line_start = (mode == PPU_MODE_OAM) && (dot == OAM_END - 1);
+
+    ppu_state ppu_state(
         .clk(clk),
         .rst(rst),
         .en(LCDC.EN),
         .LYC(LYC),
+        .WY(WY),
         .draw_done(draw_done),
+        .win_line_tick(win_line_tick),
         .dot(dot),
         .LY(LY),
+        .WLY(WLY),
         .mode(mode),
-        .lyc_match(lyc_match)
+        .lyc_match(lyc_match),
+        .win_y_condition(win_y_condition)
     );
 
     logic fetcher_tick;
@@ -79,22 +90,25 @@ module ppu(
     fifo_pixel_t fifo_head_pixel;
     logic [3:0] fifo_count;
     logic fifo_pop_en;
+    logic win_enter;
 
     assign vram_bus.wr = 1'b0;
     assign vram_bus.data_wr = 8'd0;
     assign vram_bus.rd = fetcher_tick;
     assign vram_bus.cs = 1'b1;
 
-    ppu_bg_fetcher bg_fetcher(
+    ppu_bg_win_fetcher bg_win_fetcher(
         .clk(clk),
         .rst(rst),
         .en(fetcher_tick),
         .fetcher_tick(fetcher_tick),
+        .line_start(line_start),
+        .win_enter(win_enter),
         .LY(LY),
+        .WLY(WLY),
         .SCX(SCX),
         .SCY(SCY),
-        .LCDC_BG_TILE_MAP(LCDC.BG_TILE_MAP),
-        .LCDC_TILE_DATA_MAP(LCDC.TILE_DATA_MAP),
+        .LCDC(LCDC),
         .vram_addr(vram_bus.addr),
         .vram_data(vram_bus.data_rd),
         .fifo_head_pixel(fifo_head_pixel),
@@ -110,18 +124,23 @@ module ppu(
         .clk(clk),
         .rst(rst),
         .en(fetcher_tick),
+        .line_start(line_start),
         .SCX(SCX),
+        .WX(WX),
         .BGP(BGP),
-        .LCDC_BG_EN(LCDC.BG_EN),
+        .LCDC(LCDC),
+        .win_y_condition(win_y_condition),
         .fifo_head_pixel(fifo_head_pixel),
         .fifo_count(fifo_count),
         .fifo_pop_en(fifo_pop_en),
         .LX(LX),
+        .win_enter(win_enter),
+        .win_line_tick(win_line_tick),
         .px_valid(px_valid),
         .px_color(px_color)
     );
 
-    assign draw_done = LX == 8'd160;
+    assign draw_done = LX == 'd160;
 
     always_ff @(posedge clk) begin
         if (px_valid)
@@ -133,36 +152,27 @@ module ppu(
     assign is_vblank = (mode == PPU_MODE_VBLANK);
     assign is_oam = (mode == PPU_MODE_OAM);
 
-    logic entered_hblank;
-    edge_detect hblank_edge(
-        .clk(clk),
-        .rst(rst),
-        .signal(is_hblank),
-        .rising(entered_hblank)
-    );
-
-    logic entered_vblank;
+    logic vblank_rising;
     edge_detect vblank_edge(
         .clk(clk),
         .rst(rst),
         .signal(is_vblank),
-        .rising(entered_vblank)
+        .rising(vblank_rising)
     );
 
-    logic entered_oam;
-    edge_detect oam_edge(
-        .clk(clk),
-        .rst(rst),
-        .signal(is_oam),
-        .rising(entered_oam)
-    );
+    logic stat_condition;
+    assign stat_condition = (is_hblank && STAT_INT.HBLANK_INT)
+                || (is_oam && STAT_INT.OAM_INT)
+                || (is_vblank && STAT_INT.VBLANK_INT)
+                || (lyc_match && STAT_INT.LYC_INT);
 
-    logic lyc_rising;
-    edge_detect lyc_edge(
+    logic stat_condition_rising;
+
+    edge_detect stat_edge(
         .clk(clk),
         .rst(rst),
-        .signal(lyc_match),
-        .rising(lyc_rising)
+        .signal(stat_condition),
+        .rising(stat_condition_rising)
     );
 
     always_ff @(posedge clk) begin
@@ -170,11 +180,8 @@ module ppu(
             vblank_interrupt <= 0;
             stat_interrupt <= 0;
         end else begin
-            vblank_interrupt <= entered_vblank;
-            stat_interrupt <= (entered_hblank && STAT_INT.HBLANK_INT)
-                || (entered_oam && STAT_INT.OAM_INT)
-                || (entered_vblank && STAT_INT.VBLANK_INT)
-                || (lyc_rising && STAT_INT.LYC_INT);
+            vblank_interrupt <= vblank_rising;
+            stat_interrupt <= stat_condition_rising;
         end
     end
 

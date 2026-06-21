@@ -58,6 +58,7 @@ module gameboy(
         .rst(rst),
         .bus(ppu_bus),
         .vblank_interrupt(vblank_interrupt),
+        .stat_interrupt(stat_interrupt),
         .vram_bus(ppu_vram_bus)
     );
 

@@ -71,7 +71,7 @@ verilate(basil_gb
 
         ../rtl/gameboy/ppu/ppu_types.sv
         ../rtl/gameboy/ppu/ppu_fifo.sv
-        ../rtl/gameboy/ppu/ppu_bg_fetcher.sv
+        ../rtl/gameboy/ppu/ppu_bg_win_fetcher.sv
         ../rtl/gameboy/ppu/ppu_shifter.sv
         ../rtl/gameboy/ppu/ppu_state.sv
         ../rtl/gameboy/ppu/ppu.sv
