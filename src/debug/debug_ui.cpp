@@ -37,6 +37,7 @@ bool DebugUI::init(const char* title, int w, int h) {
 
     apply_theme();
 
+    glGenTextures(1, &lcd_tex);
     glGenTextures(1, &tile_tex);
     glGenTextures(1, &map0_tex);
     glGenTextures(1, &map1_tex);
@@ -45,9 +46,12 @@ bool DebugUI::init(const char* title, int w, int h) {
         glBindTexture(GL_TEXTURE_2D, t);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
     };
 
+    setup_tex(lcd_tex, LCD_W, LCD_H);
     setup_tex(tile_tex, TILE_ATLAS_W, TILE_ATLAS_H);
     setup_tex(map0_tex, MAP_PX, MAP_PX);
     setup_tex(map1_tex, MAP_PX, MAP_PX);
@@ -56,6 +60,7 @@ bool DebugUI::init(const char* title, int w, int h) {
 }
 
 void DebugUI::shutdown() {
+    glDeleteTextures(1, &lcd_tex);
     glDeleteTextures(1, &tile_tex);
     glDeleteTextures(1, &map0_tex);
     glDeleteTextures(1, &map1_tex);
@@ -86,6 +91,15 @@ void DebugUI::update_textures(const Simulation& sim) {
 
     uint8_t lcdc_raw = sim.gb->gameboy->ppu->LCDC;
     bool signed_addr = !(lcdc_raw & 0x10);
+
+    uint8_t framebuffer[LCD_W * LCD_H];
+    for (int y = 0; y < LCD_H; y++)
+        for (int x = 0; x < LCD_W; x++)
+            framebuffer[y * LCD_W + x] = sim.gb->gameboy->ppu->framebuffer[y][x];
+
+    uint32_t lcd_pixels[LCD_W * LCD_H];
+    build_lcd(framebuffer, lcd_pixels);
+    upload_rgba(lcd_tex, LCD_W, LCD_H, lcd_pixels);
 
     uint32_t tile_pixels[TILE_ATLAS_W * TILE_ATLAS_H];
     build_tile_atlas(vram, tile_pixels);
@@ -125,28 +139,8 @@ void DebugUI::render(const Simulation& sim) {
     }
     ImGui::End();
 
-    ImGui::SetNextWindowPos({8, 164}, ImGuiCond_FirstUseEver);
-    if (ImGui::Begin("Tile Data")) {
-        ImGui::Image((ImTextureID)(intptr_t)tile_tex, {(float)TILE_ATLAS_W, (float)TILE_ATLAS_H});
-    }
-    ImGui::End();
-
-    ImGui::SetNextWindowPos({8 + TILE_ATLAS_W + 24, 164}, ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize({(float)MAP_PX + 16, 0}, ImGuiCond_Always);
-    if (ImGui::Begin("Tilemap $9800", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize)) {
-        ImGui::Image((ImTextureID)(intptr_t)map0_tex, {(float)MAP_PX, (float)MAP_PX});
-    }
-    ImGui::End();
-
-    ImGui::SetNextWindowPos({8 + TILE_ATLAS_W + 24 + MAP_PX + 24, 164}, ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize({(float)MAP_PX + 16, 0}, ImGuiCond_Always);
-    if (ImGui::Begin("Tilemap $9C00", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize)) {
-        ImGui::Image((ImTextureID)(intptr_t)map1_tex, {(float)MAP_PX, (float)MAP_PX});
-    }
-    ImGui::End();
-
-    ImGui::SetNextWindowPos({8 + TILE_ATLAS_W + 24 + MAP_PX + 24 + MAP_PX + 24, 164}, ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize({260, 160}, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos({8 + 260 + 8, 8}, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize({260, 100}, ImGuiCond_FirstUseEver);
     if (ImGui::Begin("Serial Output")) {
         std::string display;
         display.reserve(serial_buffer.size());
@@ -168,6 +162,41 @@ void DebugUI::render(const Simulation& sim) {
             ImGui::SetScrollHereY(1.0f);
             serial_dirty = false;
         }
+    }
+    ImGui::End();
+
+    ImGui::SetNextWindowPos({8, 164}, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize({(float)LCD_W * 2 + 16, 0}, ImGuiCond_Always);
+    if (ImGui::Begin("LCD", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        ImVec2 pos = ImGui::GetCursorScreenPos();
+        float w = LCD_W * 2;
+        float h = LCD_H * 2;
+        if (ImGui::GetPlatformIO().DrawCallback_SetSamplerNearest)
+            dl->AddCallback(ImGui::GetPlatformIO().DrawCallback_SetSamplerNearest, nullptr);
+        dl->AddImage((ImTextureID)(intptr_t)lcd_tex, pos, {pos.x + w, pos.y + h});
+        dl->AddCallback(ImDrawCallback_ResetRenderState, nullptr);
+        ImGui::Dummy({w, h});
+    }
+    ImGui::End();
+
+    ImGui::SetNextWindowPos({8 + LCD_W * 2 + 24, 164}, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize({(float)MAP_PX + 16, 0}, ImGuiCond_Always);
+    if (ImGui::Begin("Tilemap $9800", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::Image((ImTextureID)(intptr_t)map0_tex, {(float)MAP_PX, (float)MAP_PX});
+    }
+    ImGui::End();
+
+    ImGui::SetNextWindowPos({8 + LCD_W * 2 + 24 + MAP_PX + 24, 164}, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize({(float)MAP_PX + 16, 0}, ImGuiCond_Always);
+    if (ImGui::Begin("Tilemap $9C00", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::Image((ImTextureID)(intptr_t)map1_tex, {(float)MAP_PX, (float)MAP_PX});
+    }
+    ImGui::End();
+
+    ImGui::SetNextWindowPos({8 + LCD_W * 2 + 24 + MAP_PX + 24 + MAP_PX + 24, 164}, ImGuiCond_FirstUseEver);
+    if (ImGui::Begin("Tile Data")) {
+        ImGui::Image((ImTextureID)(intptr_t)tile_tex, {(float)TILE_ATLAS_W, (float)TILE_ATLAS_H});
     }
     ImGui::End();
 
@@ -287,4 +316,9 @@ void DebugUI::build_tilemap(const uint8_t* vram, bool use_9c00, bool signed_addr
             }
         }
     }
+}
+
+void DebugUI::build_lcd(const uint8_t* framebuffer, uint32_t* pixels) const {
+    for (int i = 0; i < LCD_W * LCD_H; i++)
+        pixels[i] = dmg_color(framebuffer[i]);
 }

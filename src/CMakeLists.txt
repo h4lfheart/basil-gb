@@ -68,6 +68,11 @@ verilate(basil_gb
 
         ../rtl/timer/timer.sv
 
+        ../rtl/ppu/ppu_types.sv
+        ../rtl/ppu/ppu_fifo.sv
+        ../rtl/ppu/ppu_bg_fetcher.sv
+        ../rtl/ppu/ppu_shifter.sv
+        ../rtl/ppu/ppu_state.sv
         ../rtl/ppu/ppu.sv
 
         ../rtl/mem/mem_types.sv

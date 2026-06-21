@@ -13,7 +13,7 @@ module gameboy(
             joypad: 0,
             serial: 0,
             timer: timer_interrupt,
-            stat: 0,
+            stat: stat_interrupt,
             vblank: vblank_interrupt
         })
 
@@ -44,7 +44,8 @@ module gameboy(
     mem_vram vram(
         .clk(clk),
         .rst(rst),
-        .bus(vram_bus)
+        .bus(vram_bus),
+        .ppu_bus(ppu_vram_bus)
     );
 
     bus wram_bus();
@@ -54,13 +55,16 @@ module gameboy(
         .bus(wram_bus)
     );
 
-    bus ppu_bus();
     logic vblank_interrupt;
+    logic stat_interrupt;
+    bus ppu_bus();
+    bus ppu_vram_bus();
     ppu ppu(
         .clk(clk),
         .rst(rst),
         .bus(ppu_bus),
-        .vblank_interrupt(vblank_interrupt)
+        .vblank_interrupt(vblank_interrupt),
+        .vram_bus(ppu_vram_bus)
     );
 
     bus serial_bus();
@@ -70,8 +74,8 @@ module gameboy(
         .bus(serial_bus)
     );
 
-    bus timer_bus();
     logic timer_interrupt;
+    bus timer_bus();
     timer timer(
         .clk(clk),
         .rst(rst),
