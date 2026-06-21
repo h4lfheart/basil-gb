@@ -1,6 +1,8 @@
 module gameboy(
     input logic clk,
-    input logic rst
+    input logic rst,
+    input joypad_buttons_t buttons,
+    bus.parent_port cart_bus
 );
     bus cpu_bus();
     bus cpu_reg_bus();
@@ -16,16 +18,8 @@ module gameboy(
             stat: stat_interrupt,
             vblank: vblank_interrupt
         })
-
     );
 
-    bus cart_bus();
-    cart cart(
-        .clk(clk),
-        .rst(rst),
-        .bus(cart_bus)
-    );
-    
     bus boot_rom_bus();
     mem_boot_rom boot_rom(
         .clk(clk),
@@ -74,6 +68,14 @@ module gameboy(
         .bus(serial_bus)
     );
 
+    bus joypad_bus();
+    joypad joypad(
+        .clk(clk),
+        .rst(rst),
+        .bus(joypad_bus),
+        .buttons(buttons)
+    );
+
     logic timer_interrupt;
     bus timer_bus();
     timer timer(
@@ -95,7 +97,8 @@ module gameboy(
         .ppu_bus(ppu_bus),
         .cpu_reg_bus(cpu_reg_bus),
         .serial_bus(serial_bus),
-        .timer_bus(timer_bus)
+        .timer_bus(timer_bus),
+        .joypad_bus(joypad_bus)
     );
 
 endmodule

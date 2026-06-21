@@ -26,6 +26,8 @@ package mem_types;
     localparam logic [15:0] PPU_REG_START = 'hFF40;
     localparam logic [15:0] PPU_REG_END = 'hFF4B;
 
+    localparam logic [15:0] REG_JOYP = 'hFF00;
+
     localparam logic [15:0] REG_SB = 'hFF01;
     localparam logic [15:0] REG_SC = 'hFF02;
     

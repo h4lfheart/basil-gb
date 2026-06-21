@@ -4,10 +4,12 @@
 #include <vector>
 #include <cstdio>
 
-#include <Vgameboy_gameboy.h>
-#include <Vgameboy_cart.h>
-#include <Vgameboy_mem_boot_rom.h>
-#include "Vgameboy__Dpi.h"
+#include <Vconsole.h>
+#include <Vconsole_console.h>
+#include <Vconsole_gameboy.h>
+#include <Vconsole_cart.h>
+#include <Vconsole_mem_boot_rom.h>
+#include "Vconsole__Dpi.h"
 
 std::string serial_buffer;
 bool serial_echo = false;
@@ -26,7 +28,7 @@ double sc_time_stamp() {
 
 Simulation::Simulation()
     : ctx(std::make_unique<VerilatedContext>())
-    , gb(std::make_unique<Vgameboy>(ctx.get()))
+    , system(std::make_unique<Vconsole>(ctx.get()))
 {}
 
 template <typename T>
@@ -47,28 +49,30 @@ static void load_file(const std::string& path, T& mem, size_t mem_size) {
 }
 
 void Simulation::load_bootrom(const std::string& path) {
-    load_file(path, gb->gameboy->boot_rom->rom, 256);
+    load_file(path, system->console->gameboy->boot_rom->rom, 256);
 }
 
 void Simulation::load_rom(const std::string& path) {
-    load_file(path, gb->gameboy->cart->rom, 32768);
+    load_file(path, system->console->cart->rom, 32768);
 }
 
 void Simulation::reset(VerilatedVcdC* vcd, uint64_t trace_start) {
-    gb->rst = 1;
+    system->rst = 1;
     clock_cycle(vcd, trace_start);
     clock_cycle(vcd, trace_start);
-    gb->rst = 0;
+    system->rst = 0;
+
+    system->buttons = 0xFF;
 }
 
 void Simulation::clock_cycle(VerilatedVcdC* vcd, uint64_t trace_start) {
-    gb->clk = 1;
-    gb->eval();
+    system->clk = 1;
+    system->eval();
     if (vcd && clk_time >= trace_start) vcd->dump(clk_time - trace_start);
     clk_time++;
 
-    gb->clk = 0;
-    gb->eval();
+    system->clk = 0;
+    system->eval();
     if (vcd && clk_time >= trace_start) vcd->dump(clk_time - trace_start);
     clk_time++;
 }
@@ -79,6 +83,6 @@ bool Simulation::finished() const {
 
 void Simulation::open_trace(const std::string& path, VerilatedVcdC& vcd, int depth) {
     ctx->traceEverOn(true);
-    gb->trace(&vcd, depth);
+    system->trace(&vcd, depth);
     vcd.open(path.c_str());
 }

@@ -10,6 +10,17 @@
 
 #include "../sim/sim.h"
 
+struct JoypadState {
+    bool up = false;
+    bool down = false;
+    bool left = false;
+    bool right = false;
+    bool a = false;
+    bool b = false;
+    bool start = false;
+    bool select = false;
+};
+
 struct DebugUI {
     SDL_Window* window = nullptr;
     SDL_GLContext gl_ctx = nullptr;
@@ -21,6 +32,8 @@ struct DebugUI {
 
     bool paused = false;
     bool step_mcycle = false;
+
+    JoypadState joypad;
 
     static constexpr int LCD_W = 160;
     static constexpr int LCD_H = 144;
@@ -41,7 +54,7 @@ struct DebugUI {
     bool init(const char* title, int w, int h);
     void shutdown();
 
-    bool poll_events();
+    bool poll_events(Simulation& sim);
     void update_textures(const Simulation& sim);
     void render(const Simulation& sim);
 

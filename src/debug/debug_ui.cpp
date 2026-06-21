@@ -1,17 +1,18 @@
 #include "debug_ui.h"
 
 #include <cstring>
-#include <Vgameboy_ppu.h>
-#include <Vgameboy_cpu.h>
-#include <Vgameboy_gameboy.h>
-#include <Vgameboy_mem_vram.h>
+#include <Vconsole_ppu.h>
+#include <Vconsole_cpu.h>
+#include <Vconsole_console.h>
+#include <Vconsole_gameboy.h>
+#include <Vconsole_mem_vram.h>
 
 static uint32_t abgr(uint32_t rgba) {
     uint8_t r = (rgba >> 24) & 0xFF;
     uint8_t g = (rgba >> 16) & 0xFF;
-    uint8_t b = (rgba >> 8) & 0xFF;
+    uint8_t buttons = (rgba >> 8) & 0xFF;
     uint8_t a = rgba & 0xFF;
-    return (a << 24) | (b << 16) | (g << 8) | r;
+    return (a << 24) | (buttons << 16) | (g << 8) | r;
 }
 
 bool DebugUI::init(const char* title, int w, int h) {
@@ -74,12 +75,34 @@ void DebugUI::shutdown() {
     SDL_Quit();
 }
 
-bool DebugUI::poll_events() {
+bool DebugUI::poll_events(Simulation& sim) {
     SDL_Event e;
     while (SDL_PollEvent(&e)) {
         ImGui_ImplSDL2_ProcessEvent(&e);
         if (e.type == SDL_QUIT) return false;
-        if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE) return false;
+          if (e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) {
+            const bool pressed = (e.type == SDL_KEYDOWN);
+            if (e.key.keysym.sym == SDLK_ESCAPE && pressed) return false;
+
+            if (e.key.repeat) continue;
+
+            auto& b = sim.system->buttons;
+            auto set_btn = [&](int bit) {
+                b = pressed ? (b & ~(1 << bit)) : (b | (1 << bit));
+            };
+
+            switch (e.key.keysym.sym) {
+                case SDLK_UP: set_btn(7); break;
+                case SDLK_DOWN: set_btn(6); break;
+                case SDLK_LEFT: set_btn(5); break;
+                case SDLK_RIGHT: set_btn(4); break;
+                case SDLK_x: set_btn(3); break;
+                case SDLK_z: set_btn(2); break;
+                case SDLK_s: set_btn(1); break;
+                case SDLK_a: set_btn(0); break;
+                default: break;
+            }
+        }
     }
     return true;
 }
@@ -87,15 +110,15 @@ bool DebugUI::poll_events() {
 void DebugUI::update_textures(const Simulation& sim) {
     uint8_t vram[0x2000];
     for (int i = 0; i < 0x2000; i++)
-        vram[i] = sim.gb->gameboy->vram->vram[i];
+        vram[i] = sim.system->console->gameboy->vram->vram[i];
 
-    uint8_t lcdc_raw = sim.gb->gameboy->ppu->LCDC;
+    uint8_t lcdc_raw = sim.system->console->gameboy->ppu->LCDC;
     bool signed_addr = !(lcdc_raw & 0x10);
 
     uint8_t framebuffer[LCD_W * LCD_H];
     for (int y = 0; y < LCD_H; y++)
         for (int x = 0; x < LCD_W; x++)
-            framebuffer[y * LCD_W + x] = sim.gb->gameboy->ppu->framebuffer[y][x];
+            framebuffer[y * LCD_W + x] = sim.system->console->gameboy->ppu->framebuffer[y][x];
 
     uint32_t lcd_pixels[LCD_W * LCD_H];
     build_lcd(framebuffer, lcd_pixels);
@@ -122,12 +145,12 @@ void DebugUI::render(const Simulation& sim) {
     ImGui::SetNextWindowPos({8, 8}, ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize({260, 0}, ImGuiCond_Always);
     if (ImGui::Begin("CPU", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize)) {
-        ImGui::Text("PC  $%04X", sim.gb->gameboy->cpu->PC);
-        ImGui::Text("IR  $%02X", sim.gb->gameboy->cpu->IR);
+        ImGui::Text("PC  $%04X", sim.system->console->gameboy->cpu->PC);
+        ImGui::Text("IR  $%02X", sim.system->console->gameboy->cpu->IR);
         ImGui::Separator();
-        ImGui::Text("IME %d", sim.gb->gameboy->cpu->IME);
-        ImGui::Text("IE  %s", std::bitset<8>(sim.gb->gameboy->cpu->IE).to_string().c_str());
-        ImGui::Text("IF  %s",  std::bitset<8>(sim.gb->gameboy->cpu->IF).to_string().c_str());
+        ImGui::Text("IME %d", sim.system->console->gameboy->cpu->IME);
+        ImGui::Text("IE  %s", std::bitset<8>(sim.system->console->gameboy->cpu->IE).to_string().c_str());
+        ImGui::Text("IF  %s",  std::bitset<8>(sim.system->console->gameboy->cpu->IF).to_string().c_str());
         ImGui::Separator();
         if (paused) {
             if (ImGui::Button("Resume")) paused = false;

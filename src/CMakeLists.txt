@@ -55,36 +55,39 @@ verilate(basil_gb
 
         ../rtl/cart/cart.sv
 
-        ../rtl/cpu/cpu_types.sv
-        ../rtl/cpu/cpu_bus_controller.sv
-        ../rtl/cpu/cpu_regfile.sv
-        ../rtl/cpu/cpu_alu.sv
-        ../rtl/cpu/cpu_idu.sv
-        ../rtl/cpu/cpu_control.sv
-        ../rtl/cpu/cpu_clock.sv
-        ../rtl/cpu/cpu.sv
+        ../rtl/gameboy/cpu/cpu_types.sv
+        ../rtl/gameboy/cpu/cpu_bus_controller.sv
+        ../rtl/gameboy/cpu/cpu_regfile.sv
+        ../rtl/gameboy/cpu/cpu_alu.sv
+        ../rtl/gameboy/cpu/cpu_idu.sv
+        ../rtl/gameboy/cpu/cpu_control.sv
+        ../rtl/gameboy/cpu/cpu_clock.sv
+        ../rtl/gameboy/cpu/cpu.sv
 
-        ../rtl/io/serial.sv
+        ../rtl/gameboy/io/joypad.sv
+        ../rtl/gameboy/io/serial.sv
 
-        ../rtl/timer/timer.sv
+        ../rtl/gameboy/timer/timer.sv
 
-        ../rtl/ppu/ppu_types.sv
-        ../rtl/ppu/ppu_fifo.sv
-        ../rtl/ppu/ppu_bg_fetcher.sv
-        ../rtl/ppu/ppu_shifter.sv
-        ../rtl/ppu/ppu_state.sv
-        ../rtl/ppu/ppu.sv
+        ../rtl/gameboy/ppu/ppu_types.sv
+        ../rtl/gameboy/ppu/ppu_fifo.sv
+        ../rtl/gameboy/ppu/ppu_bg_fetcher.sv
+        ../rtl/gameboy/ppu/ppu_shifter.sv
+        ../rtl/gameboy/ppu/ppu_state.sv
+        ../rtl/gameboy/ppu/ppu.sv
 
-        ../rtl/mem/mem_types.sv
-        ../rtl/mem/mem_boot_rom.sv
-        ../rtl/mem/mem_hram.sv
-        ../rtl/mem/mem_vram.sv
-        ../rtl/mem/mem_wram.sv
-        ../rtl/mem/mmu.sv
+        ../rtl/gameboy/mem/mem_types.sv
+        ../rtl/gameboy/mem/mem_boot_rom.sv
+        ../rtl/gameboy/mem/mem_hram.sv
+        ../rtl/gameboy/mem/mem_vram.sv
+        ../rtl/gameboy/mem/mem_wram.sv
+        ../rtl/gameboy/mem/mmu.sv
 
-        ../rtl/gameboy.sv
-    TOP_MODULE gameboy
-    PREFIX Vgameboy
+        ../rtl/gameboy/gameboy.sv
+        ../rtl/console.sv
+
+    TOP_MODULE console
+    PREFIX Vconsole
     TRACE_VCD
     OPT_FAST "-O3"
     OPT_SLOW "-O2"

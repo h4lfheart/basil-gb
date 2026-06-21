@@ -4,7 +4,7 @@
 #include <memory>
 #include <string>
 
-#include <Vgameboy.h>
+#include <Vconsole.h>
 #include "verilated.h"
 #include "verilated_vcd_c.h"
 
@@ -18,7 +18,7 @@ double sc_time_stamp();
 
 struct Simulation {
     std::unique_ptr<VerilatedContext> ctx;
-    std::unique_ptr<Vgameboy> gb;
+    std::unique_ptr<Vconsole> system;
     uint64_t clk_time = 0;
 
     Simulation();

@@ -22,6 +22,7 @@ module mmu (
     bus.parent_port cpu_reg_bus,
     bus.parent_port serial_bus,
     bus.parent_port timer_bus,
+    bus.parent_port joypad_bus
 );
     logic [7:0] BANK = 'h00;
 
@@ -34,6 +35,7 @@ module mmu (
     logic cs_cpu_reg;
     logic cs_serial;
     logic cs_timer;
+    logic cs_joypad;
 
     always_comb begin
         cs_boot_rom = (BANK == 'h00) && cpu_bus.addr inside {[BOOT_ROM_START:BOOT_ROM_END]};
@@ -46,6 +48,8 @@ module mmu (
         cs_cpu_reg = cpu_bus.addr inside {REG_IF, REG_IE};
         cs_serial = cpu_bus.addr inside {REG_SB, REG_SC};
         cs_timer = cpu_bus.addr inside {REG_DIV, REG_TIMA, REG_TMA, REG_TAC};
+        cs_joypad = cpu_bus.addr inside {REG_JOYP};
+        
     end
 
     `DEF_BUS(boot_rom_bus, cs_boot_rom)
@@ -57,6 +61,7 @@ module mmu (
     `DEF_BUS(cpu_reg_bus, cs_cpu_reg)
     `DEF_BUS(serial_bus, cs_serial)
     `DEF_BUS(timer_bus, cs_timer)
+    `DEF_BUS(joypad_bus, cs_joypad)
 
     
     always_ff @(posedge clk) begin
@@ -81,7 +86,7 @@ module mmu (
             else if (cs_cpu_reg) cpu_bus.data_rd = cpu_reg_bus.data_rd;
             else if (cs_serial) cpu_bus.data_rd = serial_bus.data_rd;
             else if (cs_timer) cpu_bus.data_rd = timer_bus.data_rd;
-            else if (cpu_bus.addr == 'hFF00) cpu_bus.data_rd = 'b00001111;
+            else if (cs_joypad) cpu_bus.data_rd = joypad_bus.data_rd;
             //else $display("Invalid read at 0x%0h", cpu_bus.addr);
         end
     end
@@ -96,6 +101,7 @@ module mmu (
         else if (cs_cpu_reg);
         else if (cs_serial);
         else if (cs_timer);
+        else if (cs_joypad);
         //else $display("Invalid write at 0x%0h", cpu_bus.addr);
     end
 

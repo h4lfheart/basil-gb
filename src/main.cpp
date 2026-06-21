@@ -122,7 +122,7 @@ int main(int argc, char **argv) {
     auto next_frame = clock::now() + frame_duration;
 
     while (!sim.finished()) {
-        if (!ui.poll_events())
+        if (!ui.poll_events(sim))
             break;
 
         if (!ui.paused) {
