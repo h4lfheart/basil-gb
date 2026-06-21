@@ -98,8 +98,8 @@ bool DebugUI::poll_events(Simulation& sim) {
                 case SDLK_RIGHT: set_btn(4); break;
                 case SDLK_x: set_btn(3); break;
                 case SDLK_z: set_btn(2); break;
-                case SDLK_s: set_btn(1); break;
-                case SDLK_a: set_btn(0); break;
+                case SDLK_RETURN: set_btn(1); break;
+                case SDLK_BACKSPACE: set_btn(0); break;
                 default: break;
             }
         }

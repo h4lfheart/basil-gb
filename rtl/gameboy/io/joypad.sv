@@ -15,30 +15,30 @@ module joypad(
     input joypad_buttons_t buttons,
     bus.child_port bus
 );
-    logic select_buttons;
-    logic select_dpad;
+    logic select_buttons = 1;
+    logic select_dpad = 1;
 
     always_comb begin
         bus.data_rd = 8'hFF;
 
         if (bus.cs && bus.rd) begin
-            logic [3:0] bits = 'b1111;
+            logic [3:0] bits = 4'b1111;
 
             if (select_buttons == 0) begin
-                bits[3] &= buttons.start;
-                bits[2] &= buttons.select;
-                bits[1] &= buttons.b;
-                bits[0] &= buttons.a;
+                bits[3] = buttons.start;
+                bits[2] = buttons.select;
+                bits[1] = buttons.b;
+                bits[0] = buttons.a;
             end
 
             if (select_dpad == 0) begin
-                bits[3] &= buttons.down;
-                bits[2] &= buttons.up;
-                bits[1] &= buttons.left;
-                bits[0] &= buttons.right;
+                bits[3] = buttons.down;
+                bits[2] = buttons.up;
+                bits[1] = buttons.left;
+                bits[0] = buttons.right;
             end
 
-            bus.data_rd = {2'b11, select_buttons, select_dpad, bits};
+            bus.data_rd = {2'b00, select_buttons, select_dpad, bits};
         end
     end
 
