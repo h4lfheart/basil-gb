@@ -52,6 +52,7 @@ verilate(basil_gb
         ../rtl/util/edge_detect.sv
 
         ../rtl/bus.sv
+        ../rtl/oam_ppu_bus.sv
 
         ../rtl/cart/cart.sv
 
@@ -72,6 +73,8 @@ verilate(basil_gb
         ../rtl/gameboy/ppu/ppu_types.sv
         ../rtl/gameboy/ppu/ppu_fifo.sv
         ../rtl/gameboy/ppu/ppu_bg_win_fetcher.sv
+        ../rtl/gameboy/ppu/ppu_oam_scan.sv
+        ../rtl/gameboy/ppu/ppu_obj_fetcher.sv
         ../rtl/gameboy/ppu/ppu_shifter.sv
         ../rtl/gameboy/ppu/ppu_state.sv
         ../rtl/gameboy/ppu/ppu.sv
@@ -81,6 +84,7 @@ verilate(basil_gb
         ../rtl/gameboy/mem/mem_hram.sv
         ../rtl/gameboy/mem/mem_vram.sv
         ../rtl/gameboy/mem/mem_wram.sv
+        ../rtl/gameboy/mem/mem_oam.sv
         ../rtl/gameboy/mem/mmu.sv
 
         ../rtl/gameboy/gameboy.sv

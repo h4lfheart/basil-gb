@@ -6,6 +6,7 @@ module ppu_bg_win_fetcher(
     input logic en,
     input logic fetcher_tick,
     input logic line_start,
+    input logic restart,
     input logic win_enter,
     input logic [7:0] LY,
     input logic [7:0] WLY,
@@ -94,6 +95,8 @@ module ppu_bg_win_fetcher(
                 in_window <= 1'b1;
                 state <= FETCH_TILE;
                 fifo_reset(fifo);
+            end else if (restart) begin
+                state <= FETCH_TILE;
             end else begin
                 if (fifo_pop_en)
                     fifo_pop(fifo);

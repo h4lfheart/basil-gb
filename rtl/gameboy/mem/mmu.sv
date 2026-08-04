@@ -17,6 +17,7 @@ module mmu (
     bus.parent_port cart_bus,
     bus.parent_port vram_bus,
     bus.parent_port wram_bus,
+    bus.parent_port oam_bus,
     bus.parent_port hram_bus,
     bus.parent_port ppu_bus,
     bus.parent_port cpu_reg_bus,
@@ -30,6 +31,7 @@ module mmu (
     logic cs_cart;
     logic cs_vram;
     logic cs_wram;
+    logic cs_oam;
     logic cs_hram;
     logic cs_ppu;
     logic cs_cpu_reg;
@@ -43,19 +45,20 @@ module mmu (
         cs_vram = cpu_bus.addr inside {[VRAM_START:VRAM_END]};
         cs_wram = cpu_bus.addr inside {[WRAM_BANK0_START:WRAM_BANK0_END], [WRAM_BANKX_START:WRAM_BANKX_END],
                                        [ECHO_BANK0_START:ECHO_BANK0_END], [ECHO_BANKX_START:ECHO_BANKX_END]};
+        cs_oam = cpu_bus.addr inside {[OAM_START:OAM_END]};
         cs_hram = cpu_bus.addr inside {[HRAM_START:HRAM_END]};
         cs_ppu = cpu_bus.addr inside {[PPU_REG_START:PPU_REG_END]};
         cs_cpu_reg = cpu_bus.addr inside {REG_IF, REG_IE};
         cs_serial = cpu_bus.addr inside {REG_SB, REG_SC};
         cs_timer = cpu_bus.addr inside {REG_DIV, REG_TIMA, REG_TMA, REG_TAC};
         cs_joypad = cpu_bus.addr inside {REG_JOYP};
-        
     end
 
     `DEF_BUS(boot_rom_bus, cs_boot_rom)
     `DEF_BUS(cart_bus, cs_cart)
     `DEF_BUS(vram_bus, cs_vram)
     `DEF_BUS(wram_bus, cs_wram)
+    `DEF_BUS(oam_bus, cs_oam)
     `DEF_BUS(hram_bus, cs_hram)
     `DEF_BUS(ppu_bus, cs_ppu)
     `DEF_BUS(cpu_reg_bus, cs_cpu_reg)
@@ -81,6 +84,7 @@ module mmu (
             else if (cs_cart) cpu_bus.data_rd = cart_bus.data_rd;
             else if (cs_vram) cpu_bus.data_rd = vram_bus.data_rd;
             else if (cs_wram) cpu_bus.data_rd = wram_bus.data_rd;
+            else if (cs_oam) cpu_bus.data_rd = oam_bus.data_rd;
             else if (cs_hram) cpu_bus.data_rd = hram_bus.data_rd;
             else if (cs_ppu) cpu_bus.data_rd = ppu_bus.data_rd;
             else if (cs_cpu_reg) cpu_bus.data_rd = cpu_reg_bus.data_rd;
@@ -96,6 +100,7 @@ module mmu (
         else if (cs_cart);
         else if (cs_vram);
         else if (cs_wram);
+        else if (cs_oam);
         else if (cs_hram);
         else if (cs_ppu);
         else if (cs_cpu_reg);

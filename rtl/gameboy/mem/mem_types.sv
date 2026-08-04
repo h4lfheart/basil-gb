@@ -20,6 +20,9 @@ package mem_types;
     localparam logic [15:0] ECHO_BANKX_START = 'hF000;
     localparam logic [15:0] ECHO_BANKX_END = 'hFDFF;
 
+    localparam logic [15:0] OAM_START = 'hFE00;
+    localparam logic [15:0] OAM_END = 'hFE9F;
+
     localparam logic [15:0] HRAM_START = 'hFF80;
     localparam logic [15:0] HRAM_END = 'hFFFE;
 

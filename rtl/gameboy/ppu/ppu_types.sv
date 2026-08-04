@@ -18,6 +18,20 @@ package ppu_types;
         logic HBLANK_INT;
     } stat_int_t;
 
+    typedef struct packed {
+        logic bg_priority;
+        logic y_flip;
+        logic x_flip;
+        logic palette;
+        logic [3:0] unused;
+    } oam_flags_t;
+
+    typedef struct packed {
+        logic [7:0] y;
+        logic [7:0] x;
+        logic [7:0] tile;
+        oam_flags_t flags;
+    } oam_entry_t;
 
     typedef enum logic [1:0] {
         PPU_MODE_HBLANK = 2'd0,
@@ -26,9 +40,10 @@ package ppu_types;
         PPU_MODE_DRAW = 2'd3
     } ppu_mode_t;
 
-
     localparam logic [8:0] DOTS_PER_LINE = 'd456;
-    localparam logic [8:0] OAM_END = 'd80;
+    localparam logic [8:0] OAM_SCAN_END = 'd80;
     localparam logic [7:0] LY_MAX = 'd153;
     localparam logic [7:0] VBLANK_START = 'd144;
+    localparam int SPRITES_PER_LINE = 10;
+    localparam int OAM_SPRITE_COUNT = 40;
 endpackage

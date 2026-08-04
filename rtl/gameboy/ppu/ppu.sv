@@ -1,3 +1,4 @@
+import mem_types::*;
 import ppu_types::*;
 
 module ppu(
@@ -5,6 +6,7 @@ module ppu(
     input logic rst,
     bus.child_port bus,
     bus.parent_port vram_bus,
+    oam_ppu_bus.parent_port oam_bus,
     output logic vblank_interrupt,
     output logic stat_interrupt
 );
@@ -66,7 +68,7 @@ module ppu(
     logic win_line_tick;
 
     logic line_start;
-    assign line_start = (mode == PPU_MODE_OAM) && (dot == OAM_END - 1);
+    assign line_start = (mode == PPU_MODE_OAM) && (dot == OAM_SCAN_END - 1);
 
     ppu_state ppu_state(
         .clk(clk),
@@ -84,36 +86,91 @@ module ppu(
         .win_y_condition(win_y_condition)
     );
 
-    logic fetcher_tick;
-    assign fetcher_tick = mode == PPU_MODE_DRAW;
+    logic [3:0] sprite_count;
+    oam_entry_t sprites [SPRITES_PER_LINE];
 
-    fifo_pixel_t fifo_head_pixel;
-    logic [3:0] fifo_count;
-    logic fifo_pop_en;
+    ppu_oam_scan oam_scan(
+        .clk(clk),
+        .rst(rst),
+        .scan_en(LCDC.EN && mode == PPU_MODE_OAM),
+        .dot(dot),
+        .LY(LY),
+        .LCDC(LCDC),
+        .oam_bus(oam_bus),
+        .sprite_count(sprite_count),
+        .sprites(sprites)
+    );
+
+    logic fetcher_tick;
+    logic obj_fetch_active;
+    logic obj_fetch_stall;
+    logic obj_fetch_active_d;
+    logic bg_restart;
+
+    assign fetcher_tick = (mode == PPU_MODE_DRAW) && !obj_fetch_stall;
+    assign bg_restart = obj_fetch_active && !obj_fetch_active_d;
+
+    always_ff @(posedge clk) begin
+        if (rst)
+            obj_fetch_active_d <= 1'b0;
+        else
+            obj_fetch_active_d <= obj_fetch_active;
+    end
+
+    fifo_pixel_t bg_fifo_head;
+    logic [3:0] bg_fifo_count;
+    logic bg_fifo_pop_en;
+    fifo_pixel_t obj_fifo_head;
+    logic [3:0] obj_fifo_count;
+    logic obj_fifo_pop_en;
     logic win_enter;
+
+    logic [12:0] bg_vram_addr;
+    logic [12:0] obj_vram_addr;
 
     assign vram_bus.wr = 1'b0;
     assign vram_bus.data_wr = 8'd0;
-    assign vram_bus.rd = fetcher_tick;
+    assign vram_bus.rd = (mode == PPU_MODE_DRAW);
     assign vram_bus.cs = 1'b1;
+    assign vram_bus.addr = obj_fetch_active ? obj_vram_addr : bg_vram_addr;
 
     ppu_bg_win_fetcher bg_win_fetcher(
         .clk(clk),
         .rst(rst),
-        .en(fetcher_tick),
+        .en(mode == PPU_MODE_DRAW),
         .fetcher_tick(fetcher_tick),
         .line_start(line_start),
+        .restart(bg_restart),
         .win_enter(win_enter),
         .LY(LY),
         .WLY(WLY),
         .SCX(SCX),
         .SCY(SCY),
         .LCDC(LCDC),
-        .vram_addr(vram_bus.addr),
+        .vram_addr(bg_vram_addr),
         .vram_data(vram_bus.data_rd),
-        .fifo_head_pixel(fifo_head_pixel),
-        .fifo_count(fifo_count),
-        .fifo_pop_en(fifo_pop_en)
+        .fifo_head_pixel(bg_fifo_head),
+        .fifo_count(bg_fifo_count),
+        .fifo_pop_en(bg_fifo_pop_en)
+    );
+
+    ppu_obj_fetcher obj_fetcher(
+        .clk(clk),
+        .rst(rst),
+        .en(mode == PPU_MODE_DRAW),
+        .line_start(line_start),
+        .LY(LY),
+        .LX(LX),
+        .LCDC(LCDC),
+        .sprite_count(sprite_count),
+        .sprites(sprites),
+        .vram_addr(obj_vram_addr),
+        .vram_data(vram_bus.data_rd),
+        .obj_fetch_active(obj_fetch_active),
+        .obj_fetch_stall(obj_fetch_stall),
+        .fifo_head_pixel(obj_fifo_head),
+        .fifo_count(obj_fifo_count),
+        .fifo_pop_en(obj_fifo_pop_en)
     );
 
     logic [7:0] LX;
@@ -123,16 +180,22 @@ module ppu(
     ppu_shifter shifter(
         .clk(clk),
         .rst(rst),
-        .en(fetcher_tick),
+        .en(mode == PPU_MODE_DRAW),
         .line_start(line_start),
+        .obj_fetch_active(obj_fetch_stall),
         .SCX(SCX),
         .WX(WX),
         .BGP(BGP),
+        .OBP0(OBP0),
+        .OBP1(OBP1),
         .LCDC(LCDC),
         .win_y_condition(win_y_condition),
-        .fifo_head_pixel(fifo_head_pixel),
-        .fifo_count(fifo_count),
-        .fifo_pop_en(fifo_pop_en),
+        .bg_fifo_head(bg_fifo_head),
+        .bg_fifo_count(bg_fifo_count),
+        .bg_fifo_pop_en(bg_fifo_pop_en),
+        .obj_fifo_head(obj_fifo_head),
+        .obj_fifo_count(obj_fifo_count),
+        .obj_fifo_pop_en(obj_fifo_pop_en),
         .LX(LX),
         .win_enter(win_enter),
         .win_line_tick(win_line_tick),

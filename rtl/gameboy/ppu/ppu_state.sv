@@ -22,7 +22,7 @@ module ppu_state(
     assign line_end = (dot == DOTS_PER_LINE - 1);
 
     logic line_start;
-    assign line_start = (mode == PPU_MODE_OAM) && (dot == OAM_END - 1);
+    assign line_start = (mode == PPU_MODE_OAM) && (dot == OAM_SCAN_END - 1);
 
     always_ff @(posedge clk) begin
         if (rst) begin
@@ -44,7 +44,7 @@ module ppu_state(
         end else if (en) begin
             unique case (mode)
                 PPU_MODE_OAM: begin
-                    if (dot == OAM_END - 1)
+                    if (dot == OAM_SCAN_END - 1)
                         mode <= PPU_MODE_DRAW;
                 end
                 PPU_MODE_DRAW: begin
