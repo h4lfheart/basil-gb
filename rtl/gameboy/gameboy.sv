@@ -97,6 +97,7 @@ module gameboy(
     );
 
     logic dma_active;
+    logic [15:0] dma_src_addr;
     bus dma_reg_bus();
     bus dma_mem_bus();
     oam_dma oam_dma(
@@ -104,13 +105,15 @@ module gameboy(
         .rst(rst),
         .reg_bus(dma_reg_bus),
         .mem_bus(dma_mem_bus),
-        .active(dma_active)
+        .active(dma_active),
+        .src_addr(dma_src_addr)
     );
 
     mmu mmu(
         .clk(clk),
         .rst(rst),
         .dma_active(dma_active),
+        .dma_src_addr(dma_src_addr),
         .cpu_bus(cpu_bus),
         .dma_bus(dma_mem_bus),
         .dma_reg_bus(dma_reg_bus),

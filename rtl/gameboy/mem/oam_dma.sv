@@ -6,7 +6,8 @@ module oam_dma(
     input logic rst,
     bus.child_port reg_bus,
     bus.parent_port mem_bus,
-    output logic active
+    output logic active,
+    output logic [15:0] src_addr
 );
     logic [7:0] page;
     logic [7:0] index;
@@ -19,6 +20,7 @@ module oam_dma(
     localparam logic [7:0] LAST_INDEX = OAM_END - OAM_START;
 
     assign active = busy && (delay == '0);
+    assign src_addr = {page, index};
 
     always_comb begin
         reg_bus.data_rd = 'hFF;

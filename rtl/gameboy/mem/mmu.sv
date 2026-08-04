@@ -30,6 +30,7 @@ module mmu (
     input logic clk,
     input logic rst,
     input logic dma_active,
+    input logic [15:0] dma_src_addr,
     bus.child_port cpu_bus,
     bus.child_port dma_bus,
     bus.parent_port dma_reg_bus,
@@ -78,14 +79,42 @@ module mmu (
         return cs;
     endfunction
 
+    typedef enum logic [1:0] {
+        BUS_CPU = 2'd0,
+        BUS_MAIN = 2'd1,
+        BUS_VRAM = 2'd2
+    } ext_bus_t;
+
+    function automatic ext_bus_t ext_bus(input logic [15:0] addr);
+        if (addr inside {[VRAM_START:VRAM_END]})
+            return BUS_VRAM;
+        if (addr inside {[ECHO_BANK0_START:'hFFFF]})
+            return BUS_CPU;
+        return BUS_MAIN;
+    endfunction
+
     logic [7:0] BANK = 'h00;
     cs_t cpu_cs;
     cs_t dma_cs;
+    ext_bus_t dma_src_bus;
+    ext_bus_t cpu_access_bus;
+    logic dma_src_bus_conflict;
+    logic dma_blocks_oam;
     logic cpu_ok;
 
     assign cpu_cs = decode(cpu_bus.addr, BANK);
     assign dma_cs = decode(dma_bus.addr, BANK);
-    assign cpu_ok = !dma_active || cpu_cs.hram || cpu_cs.cpu_reg || cpu_cs.dma;
+
+    assign dma_src_bus = ext_bus(dma_src_addr);
+    assign cpu_access_bus = ext_bus(cpu_bus.addr);
+
+    assign dma_src_bus_conflict = dma_active
+        && (dma_src_bus != BUS_CPU)
+        && (dma_src_bus == cpu_access_bus);
+
+    assign dma_blocks_oam = dma_active && cpu_cs.oam;
+
+    assign cpu_ok = !(dma_blocks_oam || dma_src_bus_conflict);
 
     `MMU_CONNECT_CPU(dma_reg_bus, cpu_cs.dma)
     `MMU_CONNECT_CPU(hram_bus, cpu_cs.hram)
