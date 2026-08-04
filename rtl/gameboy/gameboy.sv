@@ -96,10 +96,24 @@ module gameboy(
         .interrupt(timer_interrupt)
     );
 
+    logic dma_active;
+    bus dma_reg_bus();
+    bus dma_mem_bus();
+    oam_dma oam_dma(
+        .clk(clk),
+        .rst(rst),
+        .reg_bus(dma_reg_bus),
+        .mem_bus(dma_mem_bus),
+        .active(dma_active)
+    );
+
     mmu mmu(
         .clk(clk),
         .rst(rst),
+        .dma_active(dma_active),
         .cpu_bus(cpu_bus),
+        .dma_bus(dma_mem_bus),
+        .dma_reg_bus(dma_reg_bus),
         .boot_rom_bus(boot_rom_bus),
         .vram_bus(vram_bus),
         .hram_bus(hram_bus),

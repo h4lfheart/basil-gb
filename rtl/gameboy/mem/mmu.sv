@@ -1,18 +1,38 @@
 import mem_types::*;
 
-`define DEF_BUS(child, cs_sig) \
+`define MMU_CONNECT_CPU(child, sel) \
     always_comb begin \
         child.addr = cpu_bus.addr; \
         child.data_wr = cpu_bus.data_wr; \
         child.rd = cpu_bus.rd; \
         child.wr = cpu_bus.wr; \
-        child.cs = cs_sig; \
+        child.cs = (sel); \
+    end
+
+`define MMU_CONNECT_ARB(child, cpu_sel, dma_sel, dma_can_wr) \
+    always_comb begin \
+        if (dma_active && dma_bus.cs && (dma_sel)) begin \
+            child.addr = dma_bus.addr; \
+            child.data_wr = dma_bus.data_wr; \
+            child.rd = dma_bus.rd; \
+            child.wr = (dma_can_wr) && dma_bus.wr; \
+            child.cs = 1; \
+        end else begin \
+            child.addr = cpu_bus.addr; \
+            child.data_wr = cpu_bus.data_wr; \
+            child.rd = cpu_bus.rd; \
+            child.wr = cpu_bus.wr; \
+            child.cs = cpu_ok && (cpu_sel); \
+        end \
     end
 
 module mmu (
     input logic clk,
     input logic rst,
+    input logic dma_active,
     bus.child_port cpu_bus,
+    bus.child_port dma_bus,
+    bus.parent_port dma_reg_bus,
     bus.parent_port boot_rom_bus,
     bus.parent_port cart_bus,
     bus.parent_port vram_bus,
@@ -25,89 +45,98 @@ module mmu (
     bus.parent_port timer_bus,
     bus.parent_port joypad_bus
 );
+    typedef struct packed {
+        logic boot_rom;
+        logic cart;
+        logic vram;
+        logic wram;
+        logic oam;
+        logic hram;
+        logic ppu;
+        logic dma;
+        logic cpu_reg;
+        logic serial;
+        logic timer;
+        logic joypad;
+    } cs_t;
+
+    function automatic cs_t decode(input logic [15:0] addr, input logic [7:0] bank);
+        cs_t cs;
+        cs = '0;
+        cs.dma = addr == REG_DMA;
+        cs.boot_rom = (bank == 'h00) && addr inside {[BOOT_ROM_START:BOOT_ROM_END]};
+        cs.cart = !cs.boot_rom && addr inside {[CART_ROM_START:CART_ROM_END], [CART_RAM_START:CART_RAM_END]};
+        cs.vram = addr inside {[VRAM_START:VRAM_END]};
+        cs.wram = addr inside {[WRAM_BANK0_START:WRAM_BANK0_END], [WRAM_BANKX_START:WRAM_BANKX_END], [ECHO_BANK0_START:ECHO_BANK0_END], [ECHO_BANKX_START:ECHO_BANKX_END]};
+        cs.oam = addr inside {[OAM_START:OAM_END]};
+        cs.hram = addr inside {[HRAM_START:HRAM_END]};
+        cs.ppu = addr inside {[PPU_REG_START:PPU_REG_END]} && !cs.dma;
+        cs.cpu_reg = addr inside {REG_IF, REG_IE};
+        cs.serial = addr inside {REG_SB, REG_SC};
+        cs.timer = addr inside {REG_DIV, REG_TIMA, REG_TMA, REG_TAC};
+        cs.joypad = addr inside {REG_JOYP};
+        return cs;
+    endfunction
+
     logic [7:0] BANK = 'h00;
+    cs_t cpu_cs;
+    cs_t dma_cs;
+    logic cpu_ok;
 
-    logic cs_boot_rom;
-    logic cs_cart;
-    logic cs_vram;
-    logic cs_wram;
-    logic cs_oam;
-    logic cs_hram;
-    logic cs_ppu;
-    logic cs_cpu_reg;
-    logic cs_serial;
-    logic cs_timer;
-    logic cs_joypad;
+    assign cpu_cs = decode(cpu_bus.addr, BANK);
+    assign dma_cs = decode(dma_bus.addr, BANK);
+    assign cpu_ok = !dma_active || cpu_cs.hram || cpu_cs.cpu_reg || cpu_cs.dma;
 
-    always_comb begin
-        cs_boot_rom = (BANK == 'h00) && cpu_bus.addr inside {[BOOT_ROM_START:BOOT_ROM_END]};
-        cs_cart = !cs_boot_rom && cpu_bus.addr inside {[CART_ROM_START:CART_ROM_END], [CART_RAM_START:CART_RAM_END]};
-        cs_vram = cpu_bus.addr inside {[VRAM_START:VRAM_END]};
-        cs_wram = cpu_bus.addr inside {[WRAM_BANK0_START:WRAM_BANK0_END], [WRAM_BANKX_START:WRAM_BANKX_END],
-                                       [ECHO_BANK0_START:ECHO_BANK0_END], [ECHO_BANKX_START:ECHO_BANKX_END]};
-        cs_oam = cpu_bus.addr inside {[OAM_START:OAM_END]};
-        cs_hram = cpu_bus.addr inside {[HRAM_START:HRAM_END]};
-        cs_ppu = cpu_bus.addr inside {[PPU_REG_START:PPU_REG_END]};
-        cs_cpu_reg = cpu_bus.addr inside {REG_IF, REG_IE};
-        cs_serial = cpu_bus.addr inside {REG_SB, REG_SC};
-        cs_timer = cpu_bus.addr inside {REG_DIV, REG_TIMA, REG_TMA, REG_TAC};
-        cs_joypad = cpu_bus.addr inside {REG_JOYP};
+    `MMU_CONNECT_CPU(dma_reg_bus, cpu_cs.dma)
+    `MMU_CONNECT_CPU(hram_bus, cpu_cs.hram)
+    `MMU_CONNECT_CPU(cpu_reg_bus, cpu_cs.cpu_reg)
+    `MMU_CONNECT_CPU(ppu_bus, cpu_ok && cpu_cs.ppu)
+    `MMU_CONNECT_CPU(serial_bus, cpu_ok && cpu_cs.serial)
+    `MMU_CONNECT_CPU(timer_bus, cpu_ok && cpu_cs.timer)
+    `MMU_CONNECT_CPU(joypad_bus, cpu_ok && cpu_cs.joypad)
+
+    `MMU_CONNECT_ARB(boot_rom_bus, cpu_cs.boot_rom, dma_cs.boot_rom, 0)
+    `MMU_CONNECT_ARB(cart_bus, cpu_cs.cart, dma_cs.cart, 0)
+    `MMU_CONNECT_ARB(vram_bus, cpu_cs.vram, dma_cs.vram, 0)
+    `MMU_CONNECT_ARB(wram_bus, cpu_cs.wram, dma_cs.wram, 0)
+    `MMU_CONNECT_ARB(oam_bus, cpu_cs.oam, dma_cs.oam, 1)
+
+    always_ff @(posedge clk) begin
+        if (rst)
+            BANK <= 'h00;
+        else if (cpu_bus.wr && cpu_ok && cpu_bus.addr == REG_BANK)
+            BANK <= cpu_bus.data_wr;
     end
 
-    `DEF_BUS(boot_rom_bus, cs_boot_rom)
-    `DEF_BUS(cart_bus, cs_cart)
-    `DEF_BUS(vram_bus, cs_vram)
-    `DEF_BUS(wram_bus, cs_wram)
-    `DEF_BUS(oam_bus, cs_oam)
-    `DEF_BUS(hram_bus, cs_hram)
-    `DEF_BUS(ppu_bus, cs_ppu)
-    `DEF_BUS(cpu_reg_bus, cs_cpu_reg)
-    `DEF_BUS(serial_bus, cs_serial)
-    `DEF_BUS(timer_bus, cs_timer)
-    `DEF_BUS(joypad_bus, cs_joypad)
-
-    
-    always_ff @(posedge clk) begin
-        if (rst) begin
-            BANK <= 8'h00;
-        end else if (cpu_bus.wr) begin
-            if (cpu_bus.addr == REG_BANK)
-                BANK <= cpu_bus.data_wr;
+    always_comb begin
+        dma_bus.data_rd = 'hFF;
+        if (dma_bus.rd) begin
+            if (dma_cs.boot_rom) dma_bus.data_rd = boot_rom_bus.data_rd;
+            else if (dma_cs.cart) dma_bus.data_rd = cart_bus.data_rd;
+            else if (dma_cs.vram) dma_bus.data_rd = vram_bus.data_rd;
+            else if (dma_cs.wram) dma_bus.data_rd = wram_bus.data_rd;
+            else if (dma_cs.oam) dma_bus.data_rd = oam_bus.data_rd;
         end
     end
 
     always_comb begin
         cpu_bus.data_rd = 'hFF;
-
         if (cpu_bus.rd) begin
-            if (cs_boot_rom) cpu_bus.data_rd = boot_rom_bus.data_rd;
-            else if (cs_cart) cpu_bus.data_rd = cart_bus.data_rd;
-            else if (cs_vram) cpu_bus.data_rd = vram_bus.data_rd;
-            else if (cs_wram) cpu_bus.data_rd = wram_bus.data_rd;
-            else if (cs_oam) cpu_bus.data_rd = oam_bus.data_rd;
-            else if (cs_hram) cpu_bus.data_rd = hram_bus.data_rd;
-            else if (cs_ppu) cpu_bus.data_rd = ppu_bus.data_rd;
-            else if (cs_cpu_reg) cpu_bus.data_rd = cpu_reg_bus.data_rd;
-            else if (cs_serial) cpu_bus.data_rd = serial_bus.data_rd;
-            else if (cs_timer) cpu_bus.data_rd = timer_bus.data_rd;
-            else if (cs_joypad) cpu_bus.data_rd = joypad_bus.data_rd;
-            //else $display("Invalid read at 0x%0h", cpu_bus.addr);
+            if (cpu_cs.dma) cpu_bus.data_rd = dma_reg_bus.data_rd;
+            else if (cpu_cs.hram) cpu_bus.data_rd = hram_bus.data_rd;
+            else if (cpu_cs.cpu_reg) cpu_bus.data_rd = cpu_reg_bus.data_rd;
+            else if (cpu_ok) begin
+                if (cpu_cs.boot_rom) cpu_bus.data_rd = boot_rom_bus.data_rd;
+                else if (cpu_cs.cart) cpu_bus.data_rd = cart_bus.data_rd;
+                else if (cpu_cs.vram) cpu_bus.data_rd = vram_bus.data_rd;
+                else if (cpu_cs.wram) cpu_bus.data_rd = wram_bus.data_rd;
+                else if (cpu_cs.oam) cpu_bus.data_rd = oam_bus.data_rd;
+                else if (cpu_cs.ppu) cpu_bus.data_rd = ppu_bus.data_rd;
+                else if (cpu_cs.serial) cpu_bus.data_rd = serial_bus.data_rd;
+                else if (cpu_cs.timer) cpu_bus.data_rd = timer_bus.data_rd;
+                else if (cpu_cs.joypad) cpu_bus.data_rd = joypad_bus.data_rd;
+            end
         end
-    end
-
-    always_ff @(posedge cpu_bus.wr) begin
-        if (cs_boot_rom);
-        else if (cs_cart);
-        else if (cs_vram);
-        else if (cs_wram);
-        else if (cs_oam);
-        else if (cs_hram);
-        else if (cs_ppu);
-        else if (cs_cpu_reg);
-        else if (cs_serial);
-        else if (cs_timer);
-        else if (cs_joypad);
-        //else $display("Invalid write at 0x%0h", cpu_bus.addr);
     end
 
 endmodule
