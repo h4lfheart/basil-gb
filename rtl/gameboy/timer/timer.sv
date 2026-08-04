@@ -1,3 +1,5 @@
+import mem_types::*;
+
 typedef struct packed {
     logic enable;
     logic [1:0] clock_select;
@@ -10,11 +12,20 @@ module timer(
     output logic interrupt
 );
 
-    // Registers
     logic [15:0] DIV;
     logic [7:0] TIMA;
     logic [7:0] TMA;
     tac_t TAC;
+
+    logic div_write;
+    logic tima_write;
+    logic tma_write;
+    logic tac_write;
+
+    assign div_write = bus.cs && bus.wr && bus.addr == REG_DIV;
+    assign tima_write = bus.cs && bus.wr && bus.addr == REG_TIMA;
+    assign tma_write = bus.cs && bus.wr && bus.addr == REG_TMA;
+    assign tac_write = bus.cs && bus.wr && bus.addr == REG_TAC;
 
     always_comb begin
         bus.data_rd = 'hFF;
@@ -27,18 +38,6 @@ module timer(
             endcase
     end
 
-    always @(posedge clk) begin
-        if (bus.cs && bus.wr)
-            case (bus.addr)
-                REG_DIV: DIV <= 'h0000;
-                REG_TIMA: TIMA <= bus.data_wr;
-                REG_TMA: TMA <= bus.data_wr;
-                REG_TAC: TAC <= tac_t'(bus.data_wr[2:0]);
-            endcase
-    end
-
-    // Logic
-    
     function automatic logic tima_bit_sel();
         case (TAC.clock_select)
             'b00: return DIV[9];
@@ -61,17 +60,28 @@ module timer(
 
     always_ff @(posedge clk) begin
         if (rst) begin
-            DIV <= 0;
-            TIMA <= 0;
-            TMA <= 0;
-            TAC <= 0;
+            DIV <= '0;
+            TIMA <= '0;
+            TMA <= '0;
+            TAC <= '0;
             interrupt <= 0;
-        end
-        else begin
+        end else begin
             interrupt <= 0;
-            DIV <= DIV + 1;
 
-            if (TAC.enable && tima_falling) begin
+            if (div_write)
+                DIV <= 'd2;
+            else
+                DIV <= DIV + 1;
+
+            if (tma_write)
+                TMA <= bus.data_wr;
+
+            if (tac_write)
+                TAC <= tac_t'(bus.data_wr[2:0]);
+
+            if (tima_write)
+                TIMA <= bus.data_wr;
+            else if (TAC.enable && tima_falling) begin
                 if (TIMA == 'hFF) begin
                     TIMA <= TMA;
                     interrupt <= 1;
@@ -81,6 +91,4 @@ module timer(
         end
     end
 
-
 endmodule
-
