@@ -62,6 +62,16 @@ module cpu(
     logic IME /* verilator public */;
     logic ime_pending;
     logic isr_active;
+    logic ime_next;
+
+    always_comb begin
+        ime_next = ime_pending ? 1'b1 : IME;
+        unique case (ctrl.ime_action)
+            IME_ACTION_DI, IME_ACTION_ISR: ime_next = 1'b0;
+            IME_ACTION_RETI: ime_next = 1'b1;
+            default: ;
+        endcase
+    end
 
     function automatic logic [4:0] isr_priority_mask(logic [7:0] ie, logic [7:0] flag);
         logic [4:0] p;
@@ -83,7 +93,7 @@ module cpu(
     `always_mcycle begin
         if (isr_active && ctrl.last_mcycle)
             isr_active <= 0;
-        else if (!isr_active && ctrl.last_mcycle && IME && (IE & IF & 8'h1F) != 0)
+        else if (!isr_active && ctrl.last_mcycle && ime_next && (IE & IF & 8'h1F) != 0)
             isr_active <= 1;
     end
 
@@ -101,27 +111,16 @@ module cpu(
     end
 
     `always_mcycle begin
-        if (ime_pending) begin
-            IME <= 1;
-            ime_pending <= 0;
-        end
+        IME <= ime_next;
 
         case (ctrl.ime_action)
-            IME_ACTION_EI: begin
+            IME_ACTION_EI:
                 ime_pending <= 1;
-            end
-            IME_ACTION_DI: begin
-                IME <= 0;
+            IME_ACTION_DI, IME_ACTION_RETI, IME_ACTION_ISR:
                 ime_pending <= 0;
-            end
-            IME_ACTION_RETI: begin
-                IME <= 1;
-                ime_pending <= 0;
-            end
-            IME_ACTION_ISR: begin
-                IME <= 0;
-                ime_pending <= 0;
-            end
+            default:
+                if (ime_pending)
+                    ime_pending <= 0;
         endcase
     end
 
