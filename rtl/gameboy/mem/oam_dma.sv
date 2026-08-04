@@ -12,12 +12,13 @@ module oam_dma(
     logic [7:0] index;
     logic [7:0] sample;
     logic [1:0] tcycle;
-    logic starting;
-    logic running;
+    logic busy;
+    logic [2:0] delay;
 
+    localparam logic [2:0] START_DELAY = 3'd5;
     localparam logic [7:0] LAST_INDEX = OAM_END - OAM_START;
 
-    assign running = active && !starting;
+    assign active = busy && (delay == '0);
 
     always_comb begin
         reg_bus.data_rd = 'hFF;
@@ -26,13 +27,13 @@ module oam_dma(
     end
 
     always_comb begin
-        mem_bus.addr = 'd0;
-        mem_bus.data_wr = 'd0;
+        mem_bus.addr = '0;
+        mem_bus.data_wr = '0;
         mem_bus.rd = 0;
         mem_bus.wr = 0;
         mem_bus.cs = 0;
 
-        if (running) begin
+        if (active) begin
             unique case (tcycle)
                 T0, T1: begin
                     mem_bus.addr = {page, index};
@@ -56,18 +57,18 @@ module oam_dma(
             index <= '0;
             sample <= '0;
             tcycle <= T0;
-            active <= 0;
-            starting <= 0;
+            busy <= 0;
+            delay <= '0;
         end else if (reg_bus.cs && reg_bus.wr) begin
             page <= reg_bus.data_wr;
             index <= '0;
             sample <= '0;
             tcycle <= T0;
-            active <= 1;
-            starting <= 1;
-        end else if (active) begin
-            if (starting) begin
-                starting <= 0;
+            busy <= 1;
+            delay <= START_DELAY;
+        end else if (busy) begin
+            if (delay != '0) begin
+                delay <= delay - 1;
             end else begin
                 tcycle <= tcycle + 1;
                 unique case (tcycle)
@@ -82,10 +83,10 @@ module oam_dma(
                     end
                     T3: begin
                         if (index == LAST_INDEX) begin
-                            active <= 0;
-                            index <= 'd0;
+                            busy <= 0;
+                            index <= '0;
                         end else begin
-                            index <= index + 'd1;
+                            index <= index + 1;
                         end
                     end
                 endcase
