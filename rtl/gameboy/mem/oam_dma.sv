@@ -15,11 +15,14 @@ module oam_dma(
     logic [1:0] tcycle;
     logic busy;
     logic [2:0] delay;
+    logic oam_locked;
+    logic running;
 
     localparam logic [2:0] START_DELAY = 3'd5;
     localparam logic [7:0] LAST_INDEX = OAM_END - OAM_START;
 
-    assign active = busy && (delay == '0);
+    assign running = busy && (delay == '0);
+    assign active = running || oam_locked;
     assign src_addr = {page, index};
 
     always_comb begin
@@ -35,7 +38,7 @@ module oam_dma(
         mem_bus.wr = 0;
         mem_bus.cs = 0;
 
-        if (active) begin
+        if (running) begin
             unique case (tcycle)
                 T0, T1: begin
                     mem_bus.addr = {page, index};
@@ -61,26 +64,29 @@ module oam_dma(
             tcycle <= T0;
             busy <= 0;
             delay <= '0;
+            oam_locked <= 0;
         end else if (reg_bus.cs && reg_bus.wr) begin
             page <= reg_bus.data_wr;
             index <= '0;
             sample <= '0;
             tcycle <= T0;
+            oam_locked <= busy;
             busy <= 1;
             delay <= START_DELAY;
         end else if (busy) begin
             if (delay != '0) begin
                 delay <= delay - 1;
             end else begin
+                oam_locked <= 0;
                 tcycle <= tcycle + 1;
                 unique case (tcycle)
-                    T0: begin 
+                    T0: begin
 
                     end
                     T1: begin
                         sample <= mem_bus.data_rd;
                     end
-                    T2: begin 
+                    T2: begin
 
                     end
                     T3: begin
