@@ -64,6 +64,7 @@ module gameboy(
     logic vblank_interrupt;
     logic stat_interrupt;
     logic cgb_mode;
+    logic cpu_oam_blocked;
     bus ppu_bus();
     ppu ppu(
         .clk(clk),
@@ -74,7 +75,8 @@ module gameboy(
         .stat_interrupt(stat_interrupt),
         .vram_bus(ppu_vram_bus),
         .oam_bus(ppu_oam_bus),
-        .cpu_vram_bank(cpu_vram_bank)
+        .cpu_vram_bank(cpu_vram_bank),
+        .cpu_oam_blocked(cpu_oam_blocked)
     );
 
     bus serial_bus();
@@ -119,6 +121,7 @@ module gameboy(
         .rst(rst),
         .dma_active(dma_active),
         .dma_src_addr(dma_src_addr),
+        .cpu_oam_blocked(cpu_oam_blocked),
         .cpu_bus(cpu_bus),
         .dma_bus(dma_mem_bus),
         .dma_reg_bus(dma_reg_bus),

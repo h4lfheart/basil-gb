@@ -10,68 +10,58 @@ module cpu(
     input interrupts_t interrupts
 );
 
-    // Clock
+    control_t ctrl;
     tcycle_t tcycle;
     mcycle_t mcycle;
-    cpu_clock clock(
-        .clk(clk),
-        .rst(rst),
-        .rst_mcycle(ctrl.last_mcycle),
-        .tcycle(tcycle),
-        .mcycle(mcycle)
-    );
 
-    // Bus Registers
     logic [7:0] IE /* verilator public */;
     logic [7:0] IF /* verilator public */;
-    
-    always_comb begin
-        reg_bus.data_rd = 'hFF;
-        if (reg_bus.cs && reg_bus.rd)
-            case (reg_bus.addr)
-                REG_IF: reg_bus.data_rd = IF;
-                REG_IE: reg_bus.data_rd = IE;
-            endcase
-    end
+    logic [7:0] if_next;
 
-    always @(posedge clk) begin
-        IF <= IF | {3'b000, interrupts};
+    logic [15:0] PC /* verilator public */;
+    logic [7:0] IR /* verilator public */;
+    logic [7:0] Z;
+    logic [7:0] W;
+    logic [15:0] WZ;
+    logic Z_SIGN;
 
-        if (reg_bus.cs && reg_bus.wr) begin
-            case (reg_bus.addr)
-                REG_IF: IF <= reg_bus.data_wr | {3'b000, interrupts};
-                REG_IE: IE <= reg_bus.data_wr;
-            endcase
-        end
-    end
-
-    // Halt
     logic halted;
-    logic halt_exit;
-    assign halt_exit = (IE & IF & 'h1F) != 'h00;
-
-    `always_mcycle begin
-        if (ctrl.halt)
-            halted <= 1;
-        else if (halted && ctrl.last_mcycle)
-            halted <= 0;
-    end
-
-    // ISR
+    logic halt_pending_intr;
+    logic halt_fetch_request;
+    logic halt_fetch_wake;
+    logic halt_resuming;
 
     logic IME /* verilator public */;
     logic ime_pending;
     logic isr_active;
     logic ime_next;
 
-    always_comb begin
-        ime_next = ime_pending ? 1'b1 : IME;
-        unique case (ctrl.ime_action)
-            IME_ACTION_DI, IME_ACTION_ISR: ime_next = 1'b0;
-            IME_ACTION_RETI: ime_next = 1'b1;
-            default: ;
-        endcase
-    end
+    logic cb_prefix;
+    logic CC;
+
+    logic [15:0] bus_addr;
+    logic [7:0] bus_data_wr;
+    logic [7:0] bus_data_rd;
+
+    logic wr_r8;
+    logic [7:0] wr_reg_r8;
+    logic [7:0] wr_data_r8;
+    logic wr_r16;
+    logic [15:0] wr_reg_r16;
+    logic [15:0] wr_data_r16;
+    logic wr_flags;
+    flags_t wr_data_flags;
+
+    logic [7:0] alu_a;
+    logic [7:0] alu_b;
+    logic [7:0] alu_result;
+    flags_t alu_flags;
+
+    logic [15:0] idu_in;
+    logic [15:0] idu_out;
+    logic signed [1:0] idu_adj;
+
+    assign WZ = {W, Z};
 
     function automatic logic [4:0] isr_priority_mask(logic [7:0] ie, logic [7:0] flag);
         logic [4:0] p;
@@ -86,48 +76,117 @@ module cpu(
             5'b00100: return ISR_VECTOR_TIMER;
             5'b01000: return ISR_VECTOR_SERIAL;
             5'b10000: return ISR_VECTOR_JOYPAD;
-            default: return ISR_VECTOR_VBLANK;
+            default: return 16'h0000;
         endcase
     endfunction
 
-    `always_mcycle begin
-        if (isr_active && ctrl.last_mcycle)
-            isr_active <= 0;
-        else if (!isr_active && ctrl.last_mcycle && ime_next && (IE & IF & 8'h1F) != 0)
-            isr_active <= 1;
+    // Clock
+    cpu_clock clock(
+        .clk(clk),
+        .rst(rst),
+        .rst_mcycle(ctrl.last_mcycle),
+        .halt_hold(halted && !halt_resuming),
+        .halt_align(halt_fetch_request),
+        .tcycle(tcycle),
+        .mcycle(mcycle)
+    );
+
+    // Bus Registers
+    always_comb begin
+        reg_bus.data_rd = 'hFF;
+        if (reg_bus.cs && reg_bus.rd)
+            case (reg_bus.addr)
+                REG_IF: reg_bus.data_rd = IF | 8'hE0;
+                REG_IE: reg_bus.data_rd = IE;
+            endcase
     end
 
-    `always_mcycle begin
-        case (ctrl.isr_wb)
-            ISR_WB_IE: Z <= IE;
-            ISR_WB_IF: W <= IF;
-        endcase
+    always_comb begin
+        if_next = (IF & 8'h1F) | {3'b000, interrupts};
+
+        if (reg_bus.cs && reg_bus.wr && reg_bus.addr == REG_IF)
+            if_next = (reg_bus.data_wr & 8'h1F) | {3'b000, interrupts};
+
+        if (tcycle == T3 && ctrl.isr_ack)
+            if_next = (if_next & ~{3'b000, isr_priority_mask(Z, W)})
+                | {3'b000, interrupts};
     end
 
-    `always_mcycle begin
-        if (ctrl.isr_ack) begin
-            IF <= IF & ~{3'b000, isr_priority_mask(Z, W)};
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            IE <= 8'h00;
+            IF <= 8'hE0;
+        end else begin
+            IF <= if_next | 8'hE0;
+
+            if (reg_bus.cs && reg_bus.wr && reg_bus.addr == REG_IE)
+                IE <= reg_bus.data_wr;
         end
     end
 
-    `always_mcycle begin
-        IME <= ime_next;
+    // Halt
+    assign halt_pending_intr = (IE & IF & 8'h1F) != 8'h00;
+    assign halt_fetch_request = halted && !IME && !halt_fetch_wake
+        && (IE & if_next & 8'h1F) != 8'h00;
+    assign halt_resuming = IME ? halt_pending_intr : halt_fetch_wake;
 
-        case (ctrl.ime_action)
-            IME_ACTION_EI:
-                ime_pending <= 1;
-            IME_ACTION_DI, IME_ACTION_RETI, IME_ACTION_ISR:
-                ime_pending <= 0;
-            default:
-                if (ime_pending)
-                    ime_pending <= 0;
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            halted <= 1'b0;
+            halt_fetch_wake <= 1'b0;
+        end else begin
+            if (halt_fetch_request)
+                halt_fetch_wake <= 1'b1;
+
+            if (tcycle == T3) begin
+                if (ctrl.halt) begin
+                    halted <= 1'b1;
+                    halt_fetch_wake <= 1'b0;
+                end else if (halted && ctrl.last_mcycle) begin
+                    halted <= 1'b0;
+                    halt_fetch_wake <= 1'b0;
+                end
+            end
+        end
+    end
+
+    // ISR
+    always_comb begin
+        ime_next = ime_pending ? 1'b1 : IME;
+        unique case (ctrl.ime_action)
+            IME_ACTION_DI, IME_ACTION_ISR: ime_next = 1'b0;
+            IME_ACTION_RETI: ime_next = 1'b1;
+            default: ;
         endcase
     end
 
-    // Control
-    control_t ctrl;
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            IME <= 1'b0;
+            ime_pending <= 1'b0;
+            isr_active <= 1'b0;
+        end else if (tcycle == T3) begin
+            if (isr_active && ctrl.last_mcycle)
+                isr_active <= 1'b0;
+            else if (!isr_active && ctrl.last_mcycle && ime_next
+                    && (IE & IF & 8'h1F) != 8'h00)
+                isr_active <= 1'b1;
 
-    logic cb_prefix;
+            IME <= ime_next;
+
+            unique case (ctrl.ime_action)
+                IME_ACTION_EI:
+                    ime_pending <= 1'b1;
+                IME_ACTION_DI, IME_ACTION_RETI, IME_ACTION_ISR:
+                    ime_pending <= 1'b0;
+                default:
+                    if (ime_pending)
+                        ime_pending <= 1'b0;
+            endcase
+        end
+    end
+
+    // Control
     `always_mcycle begin
         if (ctrl.set_cb_prefix)
             cb_prefix <= 1;
@@ -144,7 +203,6 @@ module cpu(
         endcase
     endfunction
 
-    logic CC;
     assign CC = cc_sel(ctrl.cc);
 
     cpu_control control(
@@ -154,15 +212,11 @@ module cpu(
         .cb_prefix(cb_prefix),
         .isr(isr_active),
         .halted(halted),
-        .halt_exit(halt_exit),
+        .halt_resuming(halt_resuming),
         .ctrl(ctrl)
     );
 
     // Bus
-    logic [15:0] bus_addr;
-    logic [7:0] bus_data_wr;
-    logic [7:0] bus_data_rd;
-
     function automatic logic [15:0] bus_rd_addr_sel(bus_rd_src_t src);
         case (src)
             BUS_RD_SRC_PC: return PC;
@@ -200,16 +254,6 @@ module cpu(
         bus_data_wr = bus_wr_data_sel(ctrl.bus_wr_src);
     end
 
-    `always_mcycle begin
-        if (ctrl.bus_rd) begin
-            case (ctrl.bus_rd_dst)
-                BUS_RD_DST_IR: IR <= bus_data_rd;
-                BUS_RD_DST_Z: Z  <= bus_data_rd;
-                BUS_RD_DST_W: W  <= bus_data_rd;
-            endcase
-        end
-    end
-
     cpu_bus_controller bus_controller(
         .clk(clk),
         .tcycle(tcycle),
@@ -222,31 +266,6 @@ module cpu(
     );
 
     // Registers
-    logic [15:0] PC /* verilator public */;
-    logic [7:0] IR /* verilator public */;
-
-    logic [7:0] Z;
-    logic [7:0] W;
-    logic [15:0] WZ;
-    assign WZ = {W, Z};
-
-    logic Z_SIGN;
-    `always_mcycle begin
-        if (ctrl.z_sign)
-            Z_SIGN <= Z[7];
-    end
-
-    logic wr_r8;
-    logic [7:0] wr_reg_r8;
-    logic [7:0] wr_data_r8;
-
-    logic wr_r16;
-    logic [15:0] wr_reg_r16;
-    logic [15:0] wr_data_r16;
-
-    logic wr_flags;
-    flags_t wr_data_flags;
-
     function automatic logic [15:0] rst_vector(logic [2:0] rst_tgt);
         case (rst_tgt)
             3'd0: return 'h0000;
@@ -302,8 +321,41 @@ module cpu(
     end
 
     `always_mcycle begin
+        if (ctrl.bus_rd) begin
+            case (ctrl.bus_rd_dst)
+                BUS_RD_DST_IR: IR <= bus_data_rd;
+                BUS_RD_DST_Z: Z <= bus_data_rd;
+                BUS_RD_DST_W: W <= bus_data_rd;
+            endcase
+        end
+
+        case (ctrl.isr_wb)
+            ISR_WB_IE:
+                Z <= (reg_bus.cs && reg_bus.wr && reg_bus.addr == REG_IE)
+                    ? reg_bus.data_wr
+                    : IE;
+            ISR_WB_IF: W <= IF;
+        endcase
+
+        if (ctrl.z_sign)
+            Z_SIGN <= Z[7];
+
         case (ctrl.wb_dst)
             WB_DST_PC: PC <= wb_sel(ctrl.wb_src);
+        endcase
+
+        case (ctrl.alu_dst)
+            ALU_DST_Z: Z <= alu_result;
+            ALU_DST_W: W <= alu_result;
+        endcase
+
+        case (ctrl.idu_dst)
+            IDU_DST_PC: PC <= idu_out;
+            IDU_DST_WZ: begin
+                W <= idu_out[15:8];
+                Z <= idu_out[7:0];
+            end
+            IDU_DST_W: W <= idu_out;
         endcase
     end
 
@@ -325,11 +377,6 @@ module cpu(
     );
 
     // ALU
-    logic [7:0] alu_a;
-    logic [7:0] alu_b;
-    logic [7:0] alu_result;
-    flags_t alu_flags;
-
     function automatic logic [7:0] alu_src_sel(alu_src_t src, r8_t r8, r16_t r16);
         case (src)
             ALU_SRC_R8: return regfile.read_r8(r8);
@@ -344,13 +391,6 @@ module cpu(
     assign alu_a = alu_src_sel(ctrl.alu_a_src, ctrl.alu_a_r8, ctrl.alu_a_r16);
     assign alu_b = alu_src_sel(ctrl.alu_b_src, ctrl.alu_b_r8, ctrl.alu_b_r16);
 
-    `always_mcycle begin
-        case (ctrl.alu_dst)
-            ALU_DST_Z: Z <= alu_result;
-            ALU_DST_W: W <= alu_result;
-        endcase
-    end
-
     cpu_alu alu(
         .action(ctrl.alu_action),
         .a(alu_a),
@@ -363,10 +403,6 @@ module cpu(
     );
 
     // Increment-Decrement Unit
-    logic [15:0] idu_in;
-    logic [15:0] idu_out;
-    logic signed [1:0] idu_adj;
-
     function automatic logic signed [1:0] idu_adj_sel(idu_adj_t adj);
         case (adj)
             IDU_ADJ_NONE: return 'sh0;
@@ -375,7 +411,7 @@ module cpu(
             IDU_ADJ_CARRY: begin
                 logic carry_out;
                 carry_out = (9'(Z) + 9'(PC[7:0])) > 9'hFF;
-                return (carry_out == Z[7]) 
+                return (carry_out == Z[7])
                     ? 2'sd0
                     : carry_out ? 2'sd1 : -2'sd1;
             end
@@ -393,17 +429,6 @@ module cpu(
 
     assign idu_adj = idu_adj_sel(ctrl.idu_adj);
     assign idu_in = idu_src_sel(ctrl.idu_src);
-
-    `always_mcycle begin
-        case (ctrl.idu_dst)
-            IDU_DST_PC: PC <= idu_out;
-            IDU_DST_WZ: begin
-                W <= idu_out[15:8];
-                Z <= idu_out[7:0];
-            end
-            IDU_DST_W: W <= idu_out;
-        endcase
-    end
 
     cpu_idu idu(
         .in(idu_in),

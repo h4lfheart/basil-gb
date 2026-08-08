@@ -30,6 +30,8 @@ module ppu_bg_win_fetcher(
     } fetch_state_t;
 
     fetch_state_t state;
+    logic fetch_phase;
+    logic discard_fetch;
     logic [7:0] tile_id;
     tile_attr_t tile_attr;
     logic [7:0] tile_data_low;
@@ -85,9 +87,26 @@ module ppu_bg_win_fetcher(
         ? vram_bank1_data
         : vram_bank0_data;
 
+    task automatic push_tile();
+        for (int i = 0; i < 8; i++) begin
+            automatic logic [2:0] bit_index;
+            bit_index = (cgb_mode && tile_attr.x_flip) ? 3'(i) : 3'(7 - i);
+            fifo_push(fifo, fifo_pixel_t'{
+                color: {tile_data_high[bit_index], tile_data_low[bit_index]},
+                palette: cgb_mode ? tile_attr.palette : 3'b000,
+                bg_priority: cgb_mode ? tile_attr.bg_priority : 1'b0
+            });
+        end
+
+        fetcher_x <= fetcher_x + 'd8;
+        state <= FETCH_TILE;
+    endtask
+
     always_ff @(posedge clk) begin
         if (rst || !en) begin
             state <= FETCH_TILE;
+            fetch_phase <= 1'b0;
+            discard_fetch <= 1'b1;
             tile_id <= 'd0;
             tile_attr <= '0;
             tile_data_low <= 'd0;
@@ -100,52 +119,61 @@ module ppu_bg_win_fetcher(
                 fetcher_x <= 'd0;
                 in_window <= 1'b0;
                 state <= FETCH_TILE;
+                fetch_phase <= 1'b0;
+                discard_fetch <= 1'b1;
                 tile_attr <= '0;
                 fifo_reset(fifo);
             end else if (win_enter) begin
                 fetcher_x <= 'd0;
                 in_window <= 1'b1;
                 state <= FETCH_TILE;
+                fetch_phase <= 1'b0;
+                discard_fetch <= 1'b1;
                 tile_attr <= '0;
                 fifo_reset(fifo);
             end else if (restart) begin
                 state <= FETCH_TILE;
+                fetch_phase <= 1'b0;
             end else begin
                 if (fifo_pop_en)
                     fifo_pop(fifo);
 
                 if (fetcher_tick) begin
+                    if (state != FETCH_PUSH)
+                        fetch_phase <= ~fetch_phase;
+
                     unique case (state)
                         FETCH_TILE: begin
-                            tile_id <= vram_bank0_data;
-                            tile_attr <= cgb_mode
-                                ? tile_attr_t'(vram_bank1_data)
-                                : '0;
-                            state <= FETCH_DATA_LOW;
+                            if (!fetch_phase) begin
+                                tile_id <= vram_bank0_data;
+                                tile_attr <= cgb_mode
+                                    ? tile_attr_t'(vram_bank1_data)
+                                    : '0;
+                            end else begin
+                                state <= FETCH_DATA_LOW;
+                            end
                         end
                         FETCH_DATA_LOW: begin
-                            tile_data_low <= tile_data_byte;
-                            state <= FETCH_DATA_HIGH;
+                            if (!fetch_phase)
+                                tile_data_low <= tile_data_byte;
+                            else
+                                state <= FETCH_DATA_HIGH;
                         end
                         FETCH_DATA_HIGH: begin
-                            tile_data_high <= tile_data_byte;
-                            state <= FETCH_PUSH;
+                            if (!fetch_phase) begin
+                                tile_data_high <= tile_data_byte;
+                            end else if (discard_fetch) begin
+                                discard_fetch <= 1'b0;
+                                state <= FETCH_TILE;
+                            end else if (fifo.count == 0) begin
+                                push_tile();
+                            end else begin
+                                state <= FETCH_PUSH;
+                            end
                         end
                         FETCH_PUSH: begin
-                            if (fifo.count == 0) begin
-                                for (int i = 0; i < 8; i++) begin
-                                    automatic logic [2:0] bit_index;
-                                    bit_index = (cgb_mode && tile_attr.x_flip) ? 3'(i) : 3'(7 - i);
-                                    fifo_push(fifo, fifo_pixel_t'{
-                                        color: {tile_data_high[bit_index], tile_data_low[bit_index]},
-                                        palette: cgb_mode ? tile_attr.palette : 3'b000,
-                                        bg_priority: cgb_mode ? tile_attr.bg_priority : 1'b0
-                                    });
-                                end
-
-                                fetcher_x <= fetcher_x + 'd8;
-                                state <= FETCH_TILE;
-                            end
+                            if (fifo.count == 0)
+                                push_tile();
                         end
                     endcase
                 end

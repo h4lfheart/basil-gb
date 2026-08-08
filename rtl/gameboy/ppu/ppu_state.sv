@@ -17,6 +17,7 @@ module ppu_state(
 );
 
     logic win_shown_this_line;
+    logic lyc_match_latched;
 
     logic line_end;
     assign line_end = (dot == DOTS_PER_LINE - 1);
@@ -26,6 +27,9 @@ module ppu_state(
 
     always_ff @(posedge clk) begin
         if (rst) begin
+            dot <= 9'd0;
+            LY <= 8'd0;
+        end else if (!en) begin
             dot <= 9'd0;
             LY <= 8'd0;
         end else if (en) begin
@@ -41,6 +45,8 @@ module ppu_state(
     always_ff @(posedge clk) begin
         if (rst) begin
             mode <= PPU_MODE_OAM;
+        end else if (!en) begin
+            mode <= PPU_MODE_HBLANK;
         end else if (en) begin
             unique case (mode)
                 PPU_MODE_OAM: begin
@@ -92,8 +98,13 @@ module ppu_state(
         end
     end
 
-    always_comb begin
-        lyc_match = (LY == LYC);
+    always_ff @(posedge clk) begin
+        if (rst)
+            lyc_match_latched <= 1'b0;
+        else if (en)
+            lyc_match_latched <= (LY == LYC);
     end
+
+    assign lyc_match = en ? (LY == LYC) : lyc_match_latched;
 
 endmodule

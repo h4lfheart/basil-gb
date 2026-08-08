@@ -32,6 +32,7 @@ module mmu (
     input logic rst,
     input logic dma_active,
     input logic [15:0] dma_src_addr,
+    input logic cpu_oam_blocked,
     bus.child_port cpu_bus,
     bus.child_port dma_bus,
     bus.parent_port dma_reg_bus,
@@ -107,6 +108,7 @@ module mmu (
     ext_bus_t cpu_access_bus;
     logic dma_src_bus_conflict;
     logic dma_blocks_oam;
+    logic ppu_blocks_oam;
     logic cpu_ok;
 
     assign cgb_mode = !KEY0.dmg_compat;
@@ -122,8 +124,9 @@ module mmu (
         && (dma_src_bus == cpu_access_bus);
 
     assign dma_blocks_oam = dma_active && cpu_cs.oam;
+    assign ppu_blocks_oam = cpu_oam_blocked && cpu_cs.oam;
 
-    assign cpu_ok = !(dma_blocks_oam || dma_src_bus_conflict);
+    assign cpu_ok = !(dma_blocks_oam || ppu_blocks_oam || dma_src_bus_conflict);
 
     `MMU_CONNECT_CPU(dma_reg_bus, cpu_cs.dma)
     `MMU_CONNECT_CPU(hram_bus, cpu_cs.hram)

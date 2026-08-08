@@ -5,7 +5,7 @@ module cpu_control(
     input logic cb_prefix,
     input logic isr,
     input logic halted,
-    input logic halt_exit,
+    input logic halt_resuming,
     output control_t ctrl
 );
 
@@ -630,9 +630,8 @@ module cpu_control(
                 `OP_HALT: begin
                     if (!halted)
                         ctrl.halt = 1;
-                    else if (halt_exit) begin
+                    else if (halt_resuming)
                         ctrl_fetch();
-                    end
                 end
 
                 `OP_LD_R_R: begin

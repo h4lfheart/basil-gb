@@ -8,6 +8,7 @@ module ppu(
     vram_ppu_bus.parent_port vram_bus,
     oam_ppu_bus.parent_port oam_bus,
     output logic cpu_vram_bank,
+    output logic cpu_oam_blocked,
     output logic vblank_interrupt,
     output logic stat_interrupt
 );
@@ -52,7 +53,7 @@ module ppu(
         if (bus.cs && bus.rd)
             case (bus.addr)
                 REG_LCDC: bus.data_rd = LCDC;
-                REG_STAT: bus.data_rd = {1'b0, STAT_INT, lyc_match, mode};
+                REG_STAT: bus.data_rd = {1'b1, STAT_INT, lyc_match, mode};
                 REG_SCY: bus.data_rd = SCY;
                 REG_SCX: bus.data_rd = SCX;
                 REG_LY: bus.data_rd = LY;
@@ -273,17 +274,20 @@ module ppu(
         .px_color(px_color)
     );
 
-    assign draw_done = LX == 'd160;
+    assign draw_done = px_valid && (LX == 'd159);
 
     always_ff @(posedge clk) begin
         if (px_valid)
             framebuffer[LY][LX] <= px_color;
     end
 
-    logic is_hblank, is_vblank, is_oam;
+    logic is_hblank, is_vblank, is_oam, is_draw;
     assign is_hblank = (mode == PPU_MODE_HBLANK);
     assign is_vblank = (mode == PPU_MODE_VBLANK);
     assign is_oam = (mode == PPU_MODE_OAM);
+    assign is_draw = (mode == PPU_MODE_DRAW);
+
+    assign cpu_oam_blocked = LCDC.EN && (is_oam || is_draw);
 
     logic vblank_rising;
     edge_detect vblank_edge(
