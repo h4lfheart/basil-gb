@@ -4,6 +4,7 @@ module ppu_obj_fetcher(
     input logic clk,
     input logic rst,
     input logic en,
+    input logic cgb_mode,
     input logic line_start,
     input logic [7:0] LY,
     input logic [7:0] LX,
@@ -11,6 +12,7 @@ module ppu_obj_fetcher(
     input logic [3:0] sprite_count,
     input oam_entry_t sprites [SPRITES_PER_LINE],
     output logic [12:0] vram_addr,
+    output logic vram_bank,
     input logic [7:0] vram_data,
     output logic obj_fetch_active,
     output logic obj_fetch_stall,
@@ -44,6 +46,7 @@ module ppu_obj_fetcher(
     logic [2:0] pixel_y;
     logic [7:0] tile_index;
     logic [12:0] tile_data_base;
+    logic [2:0] sprite_palette;
 
     always_comb begin
         trigger = 1'b0;
@@ -76,9 +79,11 @@ module ppu_obj_fetcher(
         end
 
         tile_data_base = {tile_index, 4'b0};
+        sprite_palette = cgb_mode ? active.flags.cgb_palette : {2'b00, active.flags.dmg_palette};
     end
 
     always_comb begin
+        vram_bank = cgb_mode ? active.flags.vram_bank : 1'b0;
         unique case (state)
             FETCH_DATA_LOW: vram_addr = tile_data_base + {pixel_y, 1'b0};
             FETCH_DATA_HIGH: vram_addr = tile_data_base + {pixel_y, 1'b1};
@@ -121,7 +126,7 @@ module ppu_obj_fetcher(
                             tile_data_low,
                             tile_data_high,
                             active.flags.x_flip,
-                            {1'b0, active.flags.palette},
+                            sprite_palette,
                             active.flags.bg_priority,
                             skip_pixels
                         );

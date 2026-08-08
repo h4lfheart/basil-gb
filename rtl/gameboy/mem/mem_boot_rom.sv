@@ -3,13 +3,13 @@ module mem_boot_rom(
     input logic rst,
     bus.child_port bus
 );
-    logic [7:0] rom [256] /*verilator public*/;
+    logic [7:0] rom ['h900] /*verilator public*/;
 
     always_comb begin
         bus.data_rd = 8'hFF;
 
         if (bus.cs && bus.rd)
-            bus.data_rd = rom[bus.addr[7:0]];
+            bus.data_rd = rom[bus.addr[12:0]];
     end
 
 endmodule

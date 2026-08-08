@@ -1,4 +1,5 @@
 import mem_types::*;
+import ppu_types::*;
 
 `define MMU_CONNECT_CPU(child, sel) \
     always_comb begin \
@@ -44,7 +45,8 @@ module mmu (
     bus.parent_port cpu_reg_bus,
     bus.parent_port serial_bus,
     bus.parent_port timer_bus,
-    bus.parent_port joypad_bus
+    bus.parent_port joypad_bus,
+    output logic cgb_mode
 );
     typedef struct packed {
         logic boot_rom;
@@ -54,6 +56,8 @@ module mmu (
         logic oam;
         logic hram;
         logic ppu;
+        logic key0;
+        logic bank;
         logic dma;
         logic cpu_reg;
         logic serial;
@@ -65,13 +69,15 @@ module mmu (
         cs_t cs;
         cs = '0;
         cs.dma = addr == REG_DMA;
-        cs.boot_rom = (bank == 'h00) && addr inside {[BOOT_ROM_START:BOOT_ROM_END]};
+        cs.boot_rom = (bank == 'h00) && addr inside {[BOOT_ROM_START:BOOT_ROM_END], [BOOT_ROM_EXT_START:BOOT_ROM_EXT_END]};
         cs.cart = !cs.boot_rom && addr inside {[CART_ROM_START:CART_ROM_END], [CART_RAM_START:CART_RAM_END]};
         cs.vram = addr inside {[VRAM_START:VRAM_END]};
         cs.wram = addr inside {[WRAM_BANK0_START:WRAM_BANK0_END], [WRAM_BANKX_START:WRAM_BANKX_END], [ECHO_BANK0_START:ECHO_BANK0_END], [ECHO_BANKX_START:ECHO_BANKX_END]};
         cs.oam = addr inside {[OAM_START:OAM_END]};
         cs.hram = addr inside {[HRAM_START:HRAM_END]};
-        cs.ppu = addr inside {[PPU_REG_START:PPU_REG_END]} && !cs.dma;
+        cs.ppu = is_ppu_reg(addr) && !cs.dma;
+        cs.key0 = addr == REG_KEY0;
+        cs.bank = addr == REG_BANK;
         cs.cpu_reg = addr inside {REG_IF, REG_IE};
         cs.serial = addr inside {REG_SB, REG_SC};
         cs.timer = addr inside {REG_DIV, REG_TIMA, REG_TMA, REG_TAC};
@@ -94,6 +100,7 @@ module mmu (
     endfunction
 
     logic [7:0] BANK = 'h00;
+    key0_t KEY0 = 'h00;
     cs_t cpu_cs;
     cs_t dma_cs;
     ext_bus_t dma_src_bus;
@@ -101,6 +108,8 @@ module mmu (
     logic dma_src_bus_conflict;
     logic dma_blocks_oam;
     logic cpu_ok;
+
+    assign cgb_mode = !KEY0.dmg_compat;
 
     assign cpu_cs = decode(cpu_bus.addr, BANK);
     assign dma_cs = decode(dma_bus.addr, BANK);
@@ -131,10 +140,15 @@ module mmu (
     `MMU_CONNECT_ARB(oam_bus, cpu_cs.oam, dma_cs.oam, 1)
 
     always_ff @(posedge clk) begin
-        if (rst)
+        if (rst) begin
             BANK <= 'h00;
-        else if (cpu_bus.wr && cpu_ok && cpu_bus.addr == REG_BANK)
-            BANK <= cpu_bus.data_wr;
+            KEY0 <= 'h00;
+        end else if (cpu_bus.wr && cpu_ok) begin
+            if (cpu_cs.bank)
+                BANK <= cpu_bus.data_wr;
+            else if (cpu_cs.key0)
+                KEY0 <= cpu_bus.data_wr;
+        end
     end
 
     always_comb begin
@@ -161,6 +175,7 @@ module mmu (
                 else if (cpu_cs.wram) cpu_bus.data_rd = wram_bus.data_rd;
                 else if (cpu_cs.oam) cpu_bus.data_rd = oam_bus.data_rd;
                 else if (cpu_cs.ppu) cpu_bus.data_rd = ppu_bus.data_rd;
+                else if (cpu_cs.key0) cpu_bus.data_rd = KEY0;
                 else if (cpu_cs.serial) cpu_bus.data_rd = serial_bus.data_rd;
                 else if (cpu_cs.timer) cpu_bus.data_rd = timer_bus.data_rd;
                 else if (cpu_cs.joypad) cpu_bus.data_rd = joypad_bus.data_rd;

@@ -1,6 +1,6 @@
 typedef struct packed {
     logic [1:0] color;
-    logic [1:0] palette;
+    logic [2:0] palette;
     logic bg_priority;
 } fifo_pixel_t;
 
@@ -39,7 +39,7 @@ endfunction
 
 function automatic void fifo_pad_transparent(ref pixel_fifo_t fifo);
     fifo_pixel_t blank;
-    blank = fifo_pixel_t'{color: 2'b00, palette: 2'b00, bg_priority: 1'b0};
+    blank = fifo_pixel_t'{color: 2'b00, palette: 3'b000, bg_priority: 1'b0};
     while (fifo.count < 8)
         fifo_push(fifo, blank);
 endfunction
@@ -49,7 +49,7 @@ function automatic void fifo_overlay_sprite(
     input logic [7:0] tile_data_low,
     input logic [7:0] tile_data_high,
     input logic x_flip,
-    input logic [1:0] palette,
+    input logic [2:0] palette,
     input logic bg_priority,
     input logic [2:0] skip_pixels
 );

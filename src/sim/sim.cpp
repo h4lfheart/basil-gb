@@ -1,5 +1,6 @@
 #include "sim.h"
 
+#include <algorithm>
 #include <fstream>
 #include <vector>
 #include <cstdio>
@@ -36,8 +37,12 @@ static void load_file(const std::string& path, T& mem, size_t mem_size) {
     std::ifstream file(path, std::ios::binary | std::ios::ate);
     if (!file) return;
 
-    const auto size = static_cast<size_t>(file.tellg());
-    if (size > mem_size) return;
+    const auto file_size = static_cast<size_t>(file.tellg());
+    const auto size = std::min(file_size, mem_size);
+
+    if (file_size > mem_size)
+        std::fprintf(stderr, "%s: %zu bytes truncated to %zu (no bank switching yet)\n",
+            path.c_str(), file_size, mem_size);
 
     file.seekg(0);
 
@@ -49,7 +54,7 @@ static void load_file(const std::string& path, T& mem, size_t mem_size) {
 }
 
 void Simulation::load_bootrom(const std::string& path) {
-    load_file(path, system->console->gameboy->boot_rom->rom, 256);
+    load_file(path, system->console->gameboy->boot_rom->rom, 0x900);
 }
 
 void Simulation::load_rom(const std::string& path) {

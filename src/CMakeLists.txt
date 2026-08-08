@@ -53,6 +53,7 @@ verilate(basil_gb
 
         ../rtl/bus.sv
         ../rtl/oam_ppu_bus.sv
+        ../rtl/vram_ppu_bus.sv
 
         ../rtl/cart/cart_types.sv
         ../rtl/cart/mbc0.sv

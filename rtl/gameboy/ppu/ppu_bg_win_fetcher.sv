@@ -4,6 +4,7 @@ module ppu_bg_win_fetcher(
     input logic clk,
     input logic rst,
     input logic en,
+    input logic cgb_mode,
     input logic fetcher_tick,
     input logic line_start,
     input logic restart,
@@ -14,7 +15,8 @@ module ppu_bg_win_fetcher(
     input logic [7:0] SCY,
     input lcdc_t LCDC,
     output logic [12:0] vram_addr,
-    input logic [7:0] vram_data,
+    input logic [7:0] vram_bank0_data,
+    input logic [7:0] vram_bank1_data,
     output fifo_pixel_t fifo_head_pixel,
     output logic [3:0] fifo_count,
     input logic fifo_pop_en
@@ -29,6 +31,7 @@ module ppu_bg_win_fetcher(
 
     fetch_state_t state;
     logic [7:0] tile_id;
+    tile_attr_t tile_attr;
     logic [7:0] tile_data_low;
     logic [7:0] tile_data_high;
     logic [7:0] fetcher_x;
@@ -40,6 +43,7 @@ module ppu_bg_win_fetcher(
 
     logic [7:0] offset_x, offset_y;
     logic [4:0] tx, ty;
+    logic [2:0] pixel_y_raw;
     logic [2:0] pixel_y;
     logic [15:0] tile_map_base;
     logic [12:0] tile_map_offset;
@@ -50,15 +54,16 @@ module ppu_bg_win_fetcher(
         if (in_window) begin
             tx = fetcher_x[7:3];
             ty = WLY[7:3];
-            pixel_y = WLY[2:0];
+            pixel_y_raw = WLY[2:0];
             tile_map_base = LCDC.WIN_TILE_MAP ? 13'h1C00 : 13'h1800;
         end else begin
             tx = offset_x[7:3];
             ty = offset_y[7:3];
-            pixel_y = offset_y[2:0];
+            pixel_y_raw = offset_y[2:0];
             tile_map_base = LCDC.BG_TILE_MAP ? 13'h1C00 : 13'h1800;
         end
         tile_map_offset = {ty, tx};
+        pixel_y = (cgb_mode && tile_attr.y_flip) ? (3'd7 - pixel_y_raw) : pixel_y_raw;
     end
 
     logic [12:0] tile_data_base;
@@ -75,10 +80,16 @@ module ppu_bg_win_fetcher(
         endcase
     end
 
+    logic [7:0] tile_data_byte;
+    assign tile_data_byte = (cgb_mode && tile_attr.vram_bank)
+        ? vram_bank1_data
+        : vram_bank0_data;
+
     always_ff @(posedge clk) begin
         if (rst || !en) begin
             state <= FETCH_TILE;
             tile_id <= 'd0;
+            tile_attr <= '0;
             tile_data_low <= 'd0;
             tile_data_high <= 'd0;
             fetcher_x <= 'd0;
@@ -89,11 +100,13 @@ module ppu_bg_win_fetcher(
                 fetcher_x <= 'd0;
                 in_window <= 1'b0;
                 state <= FETCH_TILE;
+                tile_attr <= '0;
                 fifo_reset(fifo);
             end else if (win_enter) begin
                 fetcher_x <= 'd0;
                 in_window <= 1'b1;
                 state <= FETCH_TILE;
+                tile_attr <= '0;
                 fifo_reset(fifo);
             end else if (restart) begin
                 state <= FETCH_TILE;
@@ -104,24 +117,29 @@ module ppu_bg_win_fetcher(
                 if (fetcher_tick) begin
                     unique case (state)
                         FETCH_TILE: begin
-                            tile_id <= vram_data;
+                            tile_id <= vram_bank0_data;
+                            tile_attr <= cgb_mode
+                                ? tile_attr_t'(vram_bank1_data)
+                                : '0;
                             state <= FETCH_DATA_LOW;
                         end
                         FETCH_DATA_LOW: begin
-                            tile_data_low <= vram_data;
+                            tile_data_low <= tile_data_byte;
                             state <= FETCH_DATA_HIGH;
                         end
                         FETCH_DATA_HIGH: begin
-                            tile_data_high <= vram_data;
+                            tile_data_high <= tile_data_byte;
                             state <= FETCH_PUSH;
                         end
                         FETCH_PUSH: begin
                             if (fifo.count == 0) begin
                                 for (int i = 0; i < 8; i++) begin
+                                    automatic logic [2:0] bit_index;
+                                    bit_index = (cgb_mode && tile_attr.x_flip) ? 3'(i) : 3'(7 - i);
                                     fifo_push(fifo, fifo_pixel_t'{
-                                        color: {tile_data_high[7-i], tile_data_low[7-i]},
-                                        palette: 'b00,
-                                        bg_priority: 0
+                                        color: {tile_data_high[bit_index], tile_data_low[bit_index]},
+                                        palette: cgb_mode ? tile_attr.palette : 3'b000,
+                                        bg_priority: cgb_mode ? tile_attr.bg_priority : 1'b0
                                     });
                                 end
 

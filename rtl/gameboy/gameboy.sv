@@ -34,10 +34,13 @@ module gameboy(
         .bus(hram_bus)
     );
 
+    logic cpu_vram_bank;
     bus vram_bus();
+    vram_ppu_bus ppu_vram_bus();
     mem_vram vram(
         .clk(clk),
         .rst(rst),
+        .cpu_bank(cpu_vram_bank),
         .bus(vram_bus),
         .ppu_bus(ppu_vram_bus)
     );
@@ -60,16 +63,18 @@ module gameboy(
 
     logic vblank_interrupt;
     logic stat_interrupt;
+    logic cgb_mode;
     bus ppu_bus();
-    bus ppu_vram_bus();
     ppu ppu(
         .clk(clk),
         .rst(rst),
+        .cgb_mode(cgb_mode),
         .bus(ppu_bus),
         .vblank_interrupt(vblank_interrupt),
         .stat_interrupt(stat_interrupt),
         .vram_bus(ppu_vram_bus),
-        .oam_bus(ppu_oam_bus)
+        .oam_bus(ppu_oam_bus),
+        .cpu_vram_bank(cpu_vram_bank)
     );
 
     bus serial_bus();
@@ -127,7 +132,8 @@ module gameboy(
         .cpu_reg_bus(cpu_reg_bus),
         .serial_bus(serial_bus),
         .timer_bus(timer_bus),
-        .joypad_bus(joypad_bus)
+        .joypad_bus(joypad_bus),
+        .cgb_mode(cgb_mode)
     );
 
 endmodule

@@ -1,17 +1,18 @@
-import mem_types::*;
 import ppu_types::*;
 
 module ppu(
     input logic clk,
     input logic rst,
+    input logic cgb_mode /* verilator public */,
     bus.child_port bus,
-    bus.parent_port vram_bus,
+    vram_ppu_bus.parent_port vram_bus,
     oam_ppu_bus.parent_port oam_bus,
+    output logic cpu_vram_bank,
     output logic vblank_interrupt,
     output logic stat_interrupt
 );
 
-    logic [1:0] framebuffer [144][160] /* verilator public */;
+    logic [14:0] framebuffer [144][160] /* verilator public */;
 
     lcdc_t LCDC /* verilator public */;
     stat_int_t STAT_INT;
@@ -24,6 +25,27 @@ module ppu(
     logic [7:0] OBP1;
     logic [7:0] WY;
     logic [7:0] WX;
+    logic VBK;
+    palette_index_t BCPS;
+    palette_index_t OCPS;
+    logic [14:0] bg_palette [8][4] /* verilator public */;
+    logic [14:0] obj_palette [8][4] /* verilator public */;
+
+    assign cpu_vram_bank = VBK;
+
+    logic [2:0] bcps_pal;
+    logic [1:0] bcps_color;
+    logic bcps_high;
+    logic [2:0] ocps_pal;
+    logic [1:0] ocps_color;
+    logic ocps_high;
+
+    assign bcps_pal = BCPS.address[5:3];
+    assign bcps_color = BCPS.address[2:1];
+    assign bcps_high = BCPS.address[0];
+    assign ocps_pal = OCPS.address[5:3];
+    assign ocps_color = OCPS.address[2:1];
+    assign ocps_high = OCPS.address[0];
 
     always_comb begin
         bus.data_rd = 'hFF;
@@ -40,11 +62,30 @@ module ppu(
                 REG_OBP1: bus.data_rd = OBP1;
                 REG_WY: bus.data_rd = WY;
                 REG_WX: bus.data_rd = WX;
+                REG_VBK: bus.data_rd = {7'h7F, VBK};
+                REG_BCPS: bus.data_rd = BCPS;
+                REG_BCPD: begin
+                    if (bcps_high)
+                        bus.data_rd = {1'b0, bg_palette[bcps_pal][bcps_color][14:8]};
+                    else
+                        bus.data_rd = bg_palette[bcps_pal][bcps_color][7:0];
+                end
+                REG_OCPS: bus.data_rd = OCPS;
+                REG_OCPD: begin
+                    if (ocps_high)
+                        bus.data_rd = {1'b0, obj_palette[ocps_pal][ocps_color][14:8]};
+                    else
+                        bus.data_rd = obj_palette[ocps_pal][ocps_color][7:0];
+                end
             endcase
     end
 
-    always @(posedge clk) begin
-        if (bus.cs && bus.wr)
+    always_ff @(posedge clk) begin
+        if (rst) begin
+            VBK <= 'b0;
+            BCPS <= 'h00;
+            OCPS <= 'h00;
+        end else if (bus.cs && bus.wr) begin
             case (bus.addr)
                 REG_LCDC: LCDC <= bus.data_wr;
                 REG_STAT: STAT_INT <= bus.data_wr[6:3];
@@ -56,7 +97,27 @@ module ppu(
                 REG_OBP1: OBP1 <= bus.data_wr;
                 REG_WY: WY <= bus.data_wr;
                 REG_WX: WX <= bus.data_wr;
+                REG_VBK: VBK <= bus.data_wr[0];
+                REG_BCPS: BCPS <= bus.data_wr;
+                REG_BCPD: begin
+                    if (bcps_high)
+                        bg_palette[bcps_pal][bcps_color][14:8] <= bus.data_wr[6:0];
+                    else
+                        bg_palette[bcps_pal][bcps_color][7:0] <= bus.data_wr;
+                    if (BCPS.auto_increment)
+                        BCPS.address <= BCPS.address + 'd1;
+                end
+                REG_OCPS: OCPS <= bus.data_wr;
+                REG_OCPD: begin
+                    if (ocps_high)
+                        obj_palette[ocps_pal][ocps_color][14:8] <= bus.data_wr[6:0];
+                    else
+                        obj_palette[ocps_pal][ocps_color][7:0] <= bus.data_wr;
+                    if (OCPS.auto_increment)
+                        OCPS.address <= OCPS.address + 'd1;
+                end
             endcase
+        end
     end
 
     logic [8:0] dot;
@@ -127,17 +188,20 @@ module ppu(
 
     logic [12:0] bg_vram_addr;
     logic [12:0] obj_vram_addr;
+    logic obj_vram_bank;
 
-    assign vram_bus.wr = 1'b0;
-    assign vram_bus.data_wr = 8'd0;
     assign vram_bus.rd = (mode == PPU_MODE_DRAW);
     assign vram_bus.cs = 1'b1;
     assign vram_bus.addr = obj_fetch_active ? obj_vram_addr : bg_vram_addr;
+
+    logic [7:0] obj_vram_data;
+    assign obj_vram_data = obj_vram_bank ? vram_bus.bank1_data : vram_bus.bank0_data;
 
     ppu_bg_win_fetcher bg_win_fetcher(
         .clk(clk),
         .rst(rst),
         .en(mode == PPU_MODE_DRAW),
+        .cgb_mode(cgb_mode),
         .fetcher_tick(fetcher_tick),
         .line_start(line_start),
         .restart(bg_restart),
@@ -148,7 +212,8 @@ module ppu(
         .SCY(SCY),
         .LCDC(LCDC),
         .vram_addr(bg_vram_addr),
-        .vram_data(vram_bus.data_rd),
+        .vram_bank0_data(vram_bus.bank0_data),
+        .vram_bank1_data(vram_bus.bank1_data),
         .fifo_head_pixel(bg_fifo_head),
         .fifo_count(bg_fifo_count),
         .fifo_pop_en(bg_fifo_pop_en)
@@ -158,6 +223,7 @@ module ppu(
         .clk(clk),
         .rst(rst),
         .en(mode == PPU_MODE_DRAW),
+        .cgb_mode(cgb_mode),
         .line_start(line_start),
         .LY(LY),
         .LX(LX),
@@ -165,7 +231,8 @@ module ppu(
         .sprite_count(sprite_count),
         .sprites(sprites),
         .vram_addr(obj_vram_addr),
-        .vram_data(vram_bus.data_rd),
+        .vram_bank(obj_vram_bank),
+        .vram_data(obj_vram_data),
         .obj_fetch_active(obj_fetch_active),
         .obj_fetch_stall(obj_fetch_stall),
         .fifo_head_pixel(obj_fifo_head),
@@ -175,12 +242,13 @@ module ppu(
 
     logic [7:0] LX;
     logic px_valid;
-    logic [1:0] px_color;
+    logic [14:0] px_color;
 
     ppu_shifter shifter(
         .clk(clk),
         .rst(rst),
         .en(mode == PPU_MODE_DRAW),
+        .cgb_mode(cgb_mode),
         .line_start(line_start),
         .obj_fetch_active(obj_fetch_stall),
         .SCX(SCX),
@@ -188,6 +256,8 @@ module ppu(
         .BGP(BGP),
         .OBP0(OBP0),
         .OBP1(OBP1),
+        .bg_palette(bg_palette),
+        .obj_palette(obj_palette),
         .LCDC(LCDC),
         .win_y_condition(win_y_condition),
         .bg_fifo_head(bg_fifo_head),

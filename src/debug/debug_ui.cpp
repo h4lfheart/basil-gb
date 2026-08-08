@@ -7,14 +7,6 @@
 #include <Vconsole_gameboy.h>
 #include <Vconsole_mem_vram.h>
 
-static uint32_t abgr(uint32_t rgba) {
-    uint8_t r = (rgba >> 24) & 0xFF;
-    uint8_t g = (rgba >> 16) & 0xFF;
-    uint8_t buttons = (rgba >> 8) & 0xFF;
-    uint8_t a = rgba & 0xFF;
-    return (a << 24) | (buttons << 16) | (g << 8) | r;
-}
-
 bool DebugUI::init(const char* title, int w, int h) {
     SDL_Init(SDL_INIT_VIDEO);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
@@ -108,32 +100,44 @@ bool DebugUI::poll_events(Simulation& sim) {
 }
 
 void DebugUI::update_textures(const Simulation& sim) {
-    uint8_t vram[0x2000];
-    for (int i = 0; i < 0x2000; i++)
-        vram[i] = sim.system->console->gameboy->vram->vram[i];
+    const auto* ppu = sim.system->console->gameboy->ppu;
 
-    uint8_t lcdc_raw = sim.system->console->gameboy->ppu->LCDC;
+    uint8_t vram[2][VRAM_BANK_SIZE];
+    for (int bank = 0; bank < 2; bank++)
+        for (int i = 0; i < VRAM_BANK_SIZE; i++)
+            vram[bank][i] = sim.system->console->gameboy->vram->vram[bank][i];
+
+    uint8_t lcdc_raw = ppu->LCDC;
     bool signed_addr = !(lcdc_raw & 0x10);
+    bool cgb = ppu->cgb_mode != 0;
 
-    uint8_t framebuffer[LCD_W * LCD_H];
+    uint32_t bg_palette[8][4];
+    for (int p = 0; p < 8; p++) {
+        for (int c = 0; c < 4; c++) {
+            int palette_color = cgb ? c : ((ppu->BGP >> (c * 2)) & 3);
+            bg_palette[p][c] = rgb555_to_abgr(ppu->bg_palette[cgb ? p : 0][palette_color]);
+        }
+    }
+
+    uint16_t framebuffer[LCD_W * LCD_H];
     for (int y = 0; y < LCD_H; y++)
         for (int x = 0; x < LCD_W; x++)
-            framebuffer[y * LCD_W + x] = sim.system->console->gameboy->ppu->framebuffer[y][x];
+            framebuffer[y * LCD_W + x] = ppu->framebuffer[y][x];
 
     uint32_t lcd_pixels[LCD_W * LCD_H];
     build_lcd(framebuffer, lcd_pixels);
     upload_rgba(lcd_tex, LCD_W, LCD_H, lcd_pixels);
 
     uint32_t tile_pixels[TILE_ATLAS_W * TILE_ATLAS_H];
-    build_tile_atlas(vram, tile_pixels);
+    build_tile_atlas(vram[tile_bank], bg_palette[0], tile_pixels);
     upload_rgba(tile_tex, TILE_ATLAS_W, TILE_ATLAS_H, tile_pixels);
 
     uint32_t map0_pixels[MAP_PX * MAP_PX];
-    build_tilemap(vram, false, signed_addr, map0_pixels);
+    build_tilemap(vram[0], vram[1], false, signed_addr, cgb, bg_palette, map0_pixels);
     upload_rgba(map0_tex, MAP_PX, MAP_PX, map0_pixels);
 
     uint32_t map1_pixels[MAP_PX * MAP_PX];
-    build_tilemap(vram, true, signed_addr, map1_pixels);
+    build_tilemap(vram[0], vram[1], true, signed_addr, cgb, bg_palette, map1_pixels);
     upload_rgba(map1_tex, MAP_PX, MAP_PX, map1_pixels);
 }
 
@@ -219,6 +223,9 @@ void DebugUI::render(const Simulation& sim) {
 
     ImGui::SetNextWindowPos({8 + LCD_W * 2 + 24 + MAP_PX + 24 + MAP_PX + 24, 164}, ImGuiCond_FirstUseEver);
     if (ImGui::Begin("Tile Data")) {
+        ImGui::RadioButton("Bank 0", &tile_bank, 0);
+        ImGui::SameLine();
+        ImGui::RadioButton("Bank 1", &tile_bank, 1);
         ImGui::Image((ImTextureID)(intptr_t)tile_tex, {(float)TILE_ATLAS_W, (float)TILE_ATLAS_H});
     }
     ImGui::End();
@@ -284,11 +291,17 @@ void DebugUI::upload_rgba(GLuint tex, int w, int h, const uint32_t* pixels) {
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
 }
 
-uint32_t DebugUI::dmg_color(uint8_t index) const {
-    return abgr(PALETTE[index & 3]);
+uint32_t DebugUI::rgb555_to_abgr(uint16_t rgb555) const {
+    uint8_t r5 = rgb555 & 0x1F;
+    uint8_t g5 = (rgb555 >> 5) & 0x1F;
+    uint8_t b5 = (rgb555 >> 10) & 0x1F;
+    uint8_t r = (r5 << 3) | (r5 >> 2);
+    uint8_t g = (g5 << 3) | (g5 >> 2);
+    uint8_t b = (b5 << 3) | (b5 >> 2);
+    return (0xFFu << 24) | (uint32_t(b) << 16) | (uint32_t(g) << 8) | r;
 }
 
-void DebugUI::decode_tile(const uint8_t* vram, int tile_id, uint32_t* out, int atlas_w) const {
+void DebugUI::decode_tile(const uint8_t* vram, int tile_id, const uint32_t* palette, uint32_t* out, int atlas_w) const {
     int tile_col = tile_id % TILES_PER_ROW;
     int tile_row = tile_id / TILES_PER_ROW;
     int base_x = tile_col * 8;
@@ -302,22 +315,30 @@ void DebugUI::decode_tile(const uint8_t* vram, int tile_id, uint32_t* out, int a
             int col_index = ((hi >> bit) & 1) << 1 | ((lo >> bit) & 1);
             int px = base_x + (7 - bit);
             int py = base_y + row;
-            out[py * atlas_w + px] = dmg_color(col_index);
+            out[py * atlas_w + px] = palette[col_index];
         }
     }
 }
 
-void DebugUI::build_tile_atlas(const uint8_t* vram, uint32_t* pixels) const {
+void DebugUI::build_tile_atlas(const uint8_t* vram, const uint32_t* palette, uint32_t* pixels) const {
     for (int i = 0; i < TILE_COUNT; i++)
-        decode_tile(vram, i, pixels, TILE_ATLAS_W);
+        decode_tile(vram, i, palette, pixels, TILE_ATLAS_W);
 }
 
-void DebugUI::build_tilemap(const uint8_t* vram, bool use_9c00, bool signed_addr, uint32_t* pixels) const {
+void DebugUI::build_tilemap(const uint8_t* bank0, const uint8_t* bank1, bool use_9c00, bool signed_addr,
+                            bool cgb, const uint32_t bg_palette[8][4], uint32_t* pixels) const {
     int map_base = use_9c00 ? 0x1C00 : 0x1800;
 
     for (int ty = 0; ty < 32; ty++) {
         for (int tx = 0; tx < 32; tx++) {
-            uint8_t tile_id_raw = vram[map_base + ty * 32 + tx];
+            int map_offset = map_base + ty * 32 + tx;
+            uint8_t tile_id_raw = bank0[map_offset];
+            uint8_t attr = cgb ? bank1[map_offset] : 0;
+
+            const uint8_t* tile_bank_data = (attr & 0x08) ? bank1 : bank0;
+            const uint32_t* palette = bg_palette[attr & 0x07];
+            bool y_flip = attr & 0x40;
+            bool x_flip = attr & 0x20;
 
             int tile_id;
             if (signed_addr) {
@@ -327,21 +348,23 @@ void DebugUI::build_tilemap(const uint8_t* vram, bool use_9c00, bool signed_addr
             }
 
             for (int row = 0; row < 8; row++) {
-                int addr = tile_id * 16 + row * 2;
-                uint8_t lo = vram[addr];
-                uint8_t hi = vram[addr + 1];
-                for (int bit = 7; bit >= 0; bit--) {
+                int src_row = y_flip ? 7 - row : row;
+                int addr = tile_id * 16 + src_row * 2;
+                uint8_t lo = tile_bank_data[addr];
+                uint8_t hi = tile_bank_data[addr + 1];
+                for (int col = 0; col < 8; col++) {
+                    int bit = x_flip ? col : 7 - col;
                     int col_index = ((hi >> bit) & 1) << 1 | ((lo >> bit) & 1);
-                    int px = tx * 8 + (7 - bit);
+                    int px = tx * 8 + col;
                     int py = ty * 8 + row;
-                    pixels[py * MAP_PX + px] = dmg_color(col_index);
+                    pixels[py * MAP_PX + px] = palette[col_index];
                 }
             }
         }
     }
 }
 
-void DebugUI::build_lcd(const uint8_t* framebuffer, uint32_t* pixels) const {
+void DebugUI::build_lcd(const uint16_t* framebuffer, uint32_t* pixels) const {
     for (int i = 0; i < LCD_W * LCD_H; i++)
-        pixels[i] = dmg_color(framebuffer[i]);
+        pixels[i] = rgb555_to_abgr(framebuffer[i]);
 }
