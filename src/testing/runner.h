@@ -7,8 +7,14 @@
 
 enum class TestResult { Passed, Failed, Skipped };
 
-TestResult run_rom(const std::string& bootrom_path, const std::string& rom_path, const TestSuite& suite, const std::string& trace_path = "", uint64_t trace_start = 0, double timeout_seconds = 0.0);
+struct TestRuntimeInfo {
+    TestResult result = TestResult::Failed;
+    std::string serial_output;
+    double elapsed_seconds = 0.0;
+};
 
-int run_suite(const std::string& bootrom_path, const std::string& test_dir, const std::string& suite_name, const TestSuite& suite, const std::string& trace_dir = "", uint64_t trace_start = 0, double timeout_seconds = 0.0);
+TestRuntimeInfo run_rom(const std::string& bootrom_path, const std::string& rom_path, const TestSuite& suite, const std::string& trace_path = "", uint64_t trace_start = 0, double timeout_seconds = 0.0);
 
-int run_files(const std::string& bootrom_path, const std::vector<std::string>& rom_paths, const std::string& suite_name, const TestSuite& suite, const std::string& trace_dir = "", uint64_t trace_start = 0, double timeout_seconds = 0.0);
+int run_suite(const std::string& bootrom_path, const std::string& test_dir, const std::string& suite_name, const TestSuite& suite, const std::string& trace_dir = "", uint64_t trace_start = 0, double timeout_seconds = 0.0, unsigned test_threads = 1);
+
+int run_files(const std::string& bootrom_path, const std::vector<std::string>& rom_paths, const std::string& suite_name, const TestSuite& suite, const std::string& trace_dir = "", uint64_t trace_start = 0, double timeout_seconds = 0.0, unsigned test_threads = 1);

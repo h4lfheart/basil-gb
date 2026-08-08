@@ -53,6 +53,11 @@ int main(int argc, char **argv) {
         .scan<'g', double>()
         .default_value(0.0);
 
+    arguments.add_argument("--test-threads")
+        .help("Number of concurrent ROM simulations to run (default 1).")
+        .scan<'u', unsigned>()
+        .default_value(1u);
+
     try {
         arguments.parse_args(argc, argv);
     }
@@ -68,6 +73,7 @@ int main(int argc, char **argv) {
     auto trace_dir = arguments.present<std::string>("--trace");
     auto trace_start = arguments.get<uint64_t>("--trace-start");
     auto test_timeout = arguments.get<double>("--test-timeout");
+    auto test_threads = arguments.get<unsigned>("--test-threads");
 
     const std::string trace_dir_arg = trace_dir ? *trace_dir : "";
 
@@ -87,6 +93,11 @@ int main(int argc, char **argv) {
             return 1;
         }
 
+        if (test_threads < 1) {
+            std::cerr << "Error: --test-threads must be >= 1\n";
+            return 1;
+        }
+
         std::unique_ptr<TestSuite> suite;
         if (*test_type == "blargg")
             suite = std::make_unique<BlarggSuite>();
@@ -99,10 +110,10 @@ int main(int argc, char **argv) {
 
         if (has_test_files) {
             auto test_files = arguments.get<std::vector<std::string>>("--test-file");
-            return run_files(bootrom_path, test_files, *test_type, *suite, trace_dir_arg, trace_start, test_timeout);
+            return run_files(bootrom_path, test_files, *test_type, *suite, trace_dir_arg, trace_start, test_timeout, test_threads);
         }
 
-        return run_suite(bootrom_path, *test_dir, *test_type, *suite, trace_dir_arg, trace_start, test_timeout);
+        return run_suite(bootrom_path, *test_dir, *test_type, *suite, trace_dir_arg, trace_start, test_timeout, test_threads);
     }
 
     auto rom_path_opt = arguments.present<std::string>("rom");

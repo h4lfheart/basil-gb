@@ -12,9 +12,9 @@
 #include <Vconsole_mem_boot_rom.h>
 #include "Vconsole__Dpi.h"
 
-std::string serial_buffer;
-bool serial_echo = false;
-bool serial_dirty = false;
+thread_local std::string serial_buffer;
+thread_local bool serial_echo = false;
+thread_local bool serial_dirty = false;
 
 extern "C" void serial_putchar(unsigned char c) {
     serial_buffer += static_cast<char>(c);
@@ -29,8 +29,10 @@ double sc_time_stamp() {
 
 Simulation::Simulation()
     : ctx(std::make_unique<VerilatedContext>())
-    , system(std::make_unique<Vconsole>(ctx.get()))
-{}
+{
+    ctx->threads(1);
+    system = std::make_unique<Vconsole>(ctx.get());
+}
 
 template <typename T>
 static void load_file(const std::string& path, T& mem, size_t mem_size) {

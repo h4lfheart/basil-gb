@@ -8,9 +8,9 @@
 #include "verilated.h"
 #include "verilated_vcd_c.h"
 
-extern std::string serial_buffer;
-extern bool serial_echo;
-extern bool serial_dirty;
+extern thread_local std::string serial_buffer;
+extern thread_local bool serial_echo;
+extern thread_local bool serial_dirty;
 
 extern "C" void serial_putchar(unsigned char c);
 
