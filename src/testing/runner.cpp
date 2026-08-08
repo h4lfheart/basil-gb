@@ -92,16 +92,23 @@ int run_suite(const std::string& bootrom_path, const std::string& test_dir, cons
     std::vector<std::string> failed_roms;
     auto suite_start = std::chrono::steady_clock::now();
 
-    for (const auto& entry : fs::directory_iterator(test_dir)) {
+    const fs::path test_root(test_dir);
+    for (const auto& entry : fs::recursive_directory_iterator(test_root)) {
         const auto& p = entry.path();
         if (!entry.is_regular_file()) continue;
         if (p.extension() != ".gb" && p.extension() != ".gbc") continue;
 
-        const std::string name = p.filename().string();
+        const fs::path relative_path = p.lexically_relative(test_root);
+        const std::string name = relative_path.generic_string();
 
         std::string trace_path;
-        if (!trace_dir.empty())
-            trace_path = (fs::path(trace_dir) / (p.stem().string() + ".vcd")).string();
+        if (!trace_dir.empty()) {
+            fs::path relative_trace_path = relative_path;
+            relative_trace_path.replace_extension(".vcd");
+            const fs::path output_path = fs::path(trace_dir) / relative_trace_path;
+            fs::create_directories(output_path.parent_path());
+            trace_path = output_path.string();
+        }
 
         double elapsed = 0.0;
         auto result = run_rom_with_status(bootrom_path, p.string(), name, suite, elapsed, trace_path, trace_start);

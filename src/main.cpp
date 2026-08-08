@@ -34,7 +34,7 @@ int main(int argc, char **argv) {
         .help("Test suite type: blargg, mooneye");
 
     arguments.add_argument("--test-dir")
-        .help("Directory of ROMs to run as a test suite (requires --test).");
+        .help("Directory of ROMs to run recursively as a test suite (requires --test).");
 
     arguments.add_argument("--test-file")
         .help("Single ROM to run as a test (requires --test).");
