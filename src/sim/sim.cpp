@@ -53,7 +53,7 @@ void Simulation::load_bootrom(const std::string& path) {
 }
 
 void Simulation::load_rom(const std::string& path) {
-    load_file(path, system->console->cart->rom, 32768);
+    load_file(path, system->console->cart->rom, 1 << 21);
 }
 
 void Simulation::reset(VerilatedVcdC* vcd, uint64_t trace_start) {
