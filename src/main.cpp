@@ -1,6 +1,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <vector>
 #include <filesystem>
 #include <chrono>
 
@@ -37,8 +38,8 @@ int main(int argc, char **argv) {
         .help("Directory of ROMs to run recursively as a test suite (requires --test).");
 
     arguments.add_argument("--test-file")
-        .help("Single ROM to run as a test (requires --test).");
-
+        .help("One or more ROMs to run as tests (requires --test).")
+        .nargs(argparse::nargs_pattern::at_least_one);
     arguments.add_argument("--trace")
         .help("Directory to write VCD trace files to (one per ROM, named <rom>.vcd).");
 
@@ -46,6 +47,11 @@ int main(int argc, char **argv) {
         .help("Cycle time at which to start tracing.")
         .scan<'u', uint64_t>()
         .default_value(static_cast<uint64_t>(0));
+
+    arguments.add_argument("--test-timeout")
+        .help("Skip a test if it runs longer than this many seconds (0 = no timeout).")
+        .scan<'g', double>()
+        .default_value(0.0);
 
     try {
         arguments.parse_args(argc, argv);
@@ -58,20 +64,26 @@ int main(int argc, char **argv) {
     auto bootrom_path = arguments.get<std::string>("bootrom");
     auto test_type = arguments.present<std::string>("--test");
     auto test_dir = arguments.present<std::string>("--test-dir");
-    auto test_file = arguments.present<std::string>("--test-file");
+    const bool has_test_files = arguments.is_used("--test-file");
     auto trace_dir = arguments.present<std::string>("--trace");
     auto trace_start = arguments.get<uint64_t>("--trace-start");
+    auto test_timeout = arguments.get<double>("--test-timeout");
 
     const std::string trace_dir_arg = trace_dir ? *trace_dir : "";
 
-    if (test_type || test_dir || test_file) {
-        if (!test_type || (!test_dir && !test_file)) {
+    if (test_type || test_dir || has_test_files) {
+        if (!test_type || (!test_dir && !has_test_files)) {
             std::cerr << "Error: --test must be used together with --test-dir or --test-file\n";
             return 1;
         }
 
-        if (test_dir && test_file) {
+        if (test_dir && has_test_files) {
             std::cerr << "Error: --test-dir and --test-file cannot be used together\n";
+            return 1;
+        }
+
+        if (test_timeout < 0.0) {
+            std::cerr << "Error: --test-timeout must be >= 0\n";
             return 1;
         }
 
@@ -85,10 +97,12 @@ int main(int argc, char **argv) {
             return 1;
         }
 
-        if (test_file)
-            return run_single(bootrom_path, *test_file, *test_type, *suite, trace_dir_arg, trace_start);
+        if (has_test_files) {
+            auto test_files = arguments.get<std::vector<std::string>>("--test-file");
+            return run_files(bootrom_path, test_files, *test_type, *suite, trace_dir_arg, trace_start, test_timeout);
+        }
 
-        return run_suite(bootrom_path, *test_dir, *test_type, *suite, trace_dir_arg, trace_start);
+        return run_suite(bootrom_path, *test_dir, *test_type, *suite, trace_dir_arg, trace_start, test_timeout);
     }
 
     auto rom_path_opt = arguments.present<std::string>("rom");
