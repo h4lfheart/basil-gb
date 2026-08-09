@@ -168,7 +168,7 @@ module cpu(
         end else if (tcycle == T3) begin
             if (isr_active && ctrl.last_mcycle)
                 isr_active <= 1'b0;
-            else if (!isr_active && ctrl.last_mcycle && ime_next
+            else if (!isr_active && ctrl.last_mcycle && !ctrl.set_cb_prefix && ime_next
                     && (IE & IF & 8'h1F) != 8'h00)
                 isr_active <= 1'b1;
 
