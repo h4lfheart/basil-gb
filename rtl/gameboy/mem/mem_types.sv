@@ -52,6 +52,7 @@ package mem_types;
 
     localparam logic [15:0] REG_KEY0 = 'hFF4C;
     localparam logic [15:0] REG_BANK = 'hFF50;
+    localparam logic [15:0] REG_SVBK = 'hFF70;
 
     localparam logic [15:0] REG_IE = 'hFFFF;
 endpackage

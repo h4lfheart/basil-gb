@@ -51,12 +51,8 @@ module mbc3(
 
     always_comb begin
         rom_cs = cs && addr inside {[CART_ROM_START:CART_ROM_END]};
-        rom_addr = ROM_ADDR_WIDTH'(addr[13:0]);
-        if (addr inside {[ROM_BANKX_START:ROM_BANKX_END]})
-            rom_addr = {rom_bank, addr[13:0]};
-
-        ram_cs = cs && ram_enabled && bank_sel inside {['h0:'h7]} &&
-                 addr inside {[CART_RAM_START:CART_RAM_END]};
+        rom_addr = addr inside {[ROM_BANKX_START:ROM_BANKX_END]} ? {rom_bank, addr[13:0]} : ROM_ADDR_WIDTH'(addr[13:0]);
+        ram_cs = cs && ram_enabled && bank_sel inside {['h0:'h7]} && addr inside {[CART_RAM_START:CART_RAM_END]};
         ram_addr = {bank_sel[2:0], addr[12:0]};
     end
 

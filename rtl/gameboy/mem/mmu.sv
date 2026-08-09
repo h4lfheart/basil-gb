@@ -73,7 +73,7 @@ module mmu (
         cs.boot_rom = (bank == 'h00) && addr inside {[BOOT_ROM_START:BOOT_ROM_END], [BOOT_ROM_EXT_START:BOOT_ROM_EXT_END]};
         cs.cart = !cs.boot_rom && addr inside {[CART_ROM_START:CART_ROM_END], [CART_RAM_START:CART_RAM_END]};
         cs.vram = addr inside {[VRAM_START:VRAM_END]};
-        cs.wram = addr inside {[WRAM_BANK0_START:WRAM_BANK0_END], [WRAM_BANKX_START:WRAM_BANKX_END], [ECHO_BANK0_START:ECHO_BANK0_END], [ECHO_BANKX_START:ECHO_BANKX_END]};
+        cs.wram = addr inside {[WRAM_BANK0_START:WRAM_BANK0_END], [WRAM_BANKX_START:WRAM_BANKX_END], [ECHO_BANK0_START:ECHO_BANK0_END], [ECHO_BANKX_START:ECHO_BANKX_END]} || addr == REG_SVBK;
         cs.oam = addr inside {[OAM_START:OAM_END]};
         cs.hram = addr inside {[HRAM_START:HRAM_END]};
         cs.ppu = is_ppu_reg(addr) && !cs.dma;
