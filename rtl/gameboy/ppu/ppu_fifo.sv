@@ -10,7 +10,7 @@ typedef struct {
     fifo_pixel_t data [8];
 } pixel_fifo_t;
 
-function automatic fifo_pixel_t fifo_head(ref pixel_fifo_t fifo);
+function automatic fifo_pixel_t fifo_head(input pixel_fifo_t fifo);
     return fifo.data[fifo.head];
 endfunction
 
@@ -19,14 +19,11 @@ function automatic void fifo_reset(ref pixel_fifo_t fifo);
     fifo.head = 0;
 endfunction
 
-function automatic fifo_pixel_t fifo_pop(ref pixel_fifo_t fifo);
-    fifo_pixel_t out;
-    out = fifo.data[fifo.head];
+function automatic void fifo_pop(ref pixel_fifo_t fifo);
     if (fifo.count > 0) begin
         fifo.head = fifo.head + 1;
         fifo.count--;
     end
-    return out;
 endfunction
 
 function automatic void fifo_push(ref pixel_fifo_t fifo, input fifo_pixel_t in);
@@ -40,8 +37,9 @@ endfunction
 function automatic void fifo_pad_transparent(ref pixel_fifo_t fifo);
     fifo_pixel_t blank;
     blank = fifo_pixel_t'{color: 2'b00, palette: 3'b000, bg_priority: 1'b0};
-    while (fifo.count < 8)
-        fifo_push(fifo, blank);
+    for (int i = 0; i < 8; i++)
+        if (fifo.count < 8)
+            fifo_push(fifo, blank);
 endfunction
 
 function automatic void fifo_overlay_sprite(

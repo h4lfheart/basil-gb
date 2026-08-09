@@ -18,28 +18,28 @@ module joypad(
     logic select_buttons = 1;
     logic select_dpad = 1;
 
+    logic [3:0] bits;
+
     always_comb begin
         bus.data_rd = 8'hFF;
+        bits = 'b1111;
 
-        if (bus.cs && bus.rd) begin
-            logic [3:0] bits = 4'b1111;
-
-            if (select_buttons == 0) begin
-                bits[3] = buttons.start;
-                bits[2] = buttons.select;
-                bits[1] = buttons.b;
-                bits[0] = buttons.a;
-            end
-
-            if (select_dpad == 0) begin
-                bits[3] = buttons.down;
-                bits[2] = buttons.up;
-                bits[1] = buttons.left;
-                bits[0] = buttons.right;
-            end
-
-            bus.data_rd = {2'b00, select_buttons, select_dpad, bits};
+        if (select_buttons == 0) begin
+            bits[3] = buttons.start;
+            bits[2] = buttons.select;
+            bits[1] = buttons.b;
+            bits[0] = buttons.a;
         end
+
+        if (select_dpad == 0) begin
+            bits[3] = buttons.down;
+            bits[2] = buttons.up;
+            bits[1] = buttons.left;
+            bits[0] = buttons.right;
+        end
+
+        if (bus.cs && bus.rd)
+            bus.data_rd = {2'b00, select_buttons, select_dpad, bits};
     end
 
     always_ff @(posedge clk) begin

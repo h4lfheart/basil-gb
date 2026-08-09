@@ -1,3 +1,5 @@
+import cpu_types::*;
+
 module cpu_control(
     input logic [7:0] IR,
     input logic CC,
@@ -23,6 +25,9 @@ module cpu_control(
 
     cc_t cc_field;
     assign cc_field = cc_t'(IR[4:3]);
+
+    r16mem_t r16mem_field;
+    assign r16mem_field = r16mem_t'(IR[5:4]);
     
     task ctrl_pc_read(bus_rd_dst_t dst);
         ctrl.bus_rd = 1;
@@ -752,16 +757,14 @@ module cpu_control(
                 `OP_LD_RR_MEM_A: begin
                     case (mcycle)
                         M0: begin
-                            r16mem_t r16mem = r16mem_t'(r16_field);
-
                             ctrl.bus_wr = 1;
                             ctrl.bus_wr_src = BUS_WR_SRC_R8;
                             ctrl.bus_wr_src_r8 = R8_A;
                             ctrl.bus_wr_dst = BUS_WR_DST_R16;
                             ctrl.bus_wr_dst_r16 = r16mem_to_r16(r16_field);
 
-                            if (r16mem == R16MEM_HLI || r16mem == R16MEM_HLD) begin
-                                ctrl.idu_adj = r16mem == R16MEM_HLI ? IDU_ADJ_INC : IDU_ADJ_DEC;
+                            if (r16mem_field == R16MEM_HLI || r16mem_field == R16MEM_HLD) begin
+                                ctrl.idu_adj = r16mem_field == R16MEM_HLI ? IDU_ADJ_INC : IDU_ADJ_DEC;
                                 ctrl.idu_src = IDU_SRC_R16;
                                 ctrl.idu_src_r16 = r16mem_to_r16(r16_field);
 
@@ -780,15 +783,13 @@ module cpu_control(
                 `OP_LD_A_RR_MEM: begin
                     case (mcycle)
                         M0: begin
-                            r16mem_t r16mem = r16mem_t'(r16_field);
-
                             ctrl.bus_rd = 1;
                             ctrl.bus_rd_src = BUS_RD_SRC_R16;
                             ctrl.bus_rd_src_r16 = r16mem_to_r16(r16_field);
                             ctrl.bus_rd_dst = BUS_RD_DST_Z;
 
-                            if (r16mem == R16MEM_HLI || r16mem == R16MEM_HLD) begin
-                                ctrl.idu_adj = r16mem == R16MEM_HLI ? IDU_ADJ_INC : IDU_ADJ_DEC;
+                            if (r16mem_field == R16MEM_HLI || r16mem_field == R16MEM_HLD) begin
+                                ctrl.idu_adj = r16mem_field == R16MEM_HLI ? IDU_ADJ_INC : IDU_ADJ_DEC;
                                 ctrl.idu_src = IDU_SRC_R16;
                                 ctrl.idu_src_r16 = r16mem_to_r16(r16_field);
 
@@ -1425,8 +1426,10 @@ module cpu_control(
                 end
 
                 default: begin
+`ifdef VERILATOR
                     $display("Unsupported Instruction: 0x%0h", IR);
                     $finish;
+`endif
                 end
 
             endcase
@@ -1478,8 +1481,10 @@ module cpu_control(
                 end
 
                 default: begin
+`ifdef VERILATOR
                     $display("Unsupported Instruction: 0xcb%0h", IR);
                     $finish;
+`endif
                 end
 
             endcase

@@ -328,6 +328,42 @@ package cpu_types;
         logic [3:0] unused;
     } flags_t;
 
+    typedef struct packed {
+        logic [7:0] A;
+        logic [7:0] B;
+        logic [7:0] C;
+        logic [7:0] D;
+        logic [7:0] E;
+        logic [7:0] H;
+        logic [7:0] L;
+        logic [15:0] SP;
+        flags_t F;
+    } regs_t;
+
+    function automatic logic [7:0] regs_read_r8(regs_t regs, r8_t r);
+        case (r)
+            R8_B: return regs.B;
+            R8_C: return regs.C;
+            R8_D: return regs.D;
+            R8_E: return regs.E;
+            R8_H: return regs.H;
+            R8_L: return regs.L;
+            R8_A: return regs.A;
+            default: return 8'h00;
+        endcase
+    endfunction
+
+    function automatic logic [15:0] regs_read_r16(regs_t regs, r16_t r);
+        case (r)
+            R16_BC: return {regs.B, regs.C};
+            R16_DE: return {regs.D, regs.E};
+            R16_HL: return {regs.H, regs.L};
+            R16_SP: return regs.SP;
+            R16_AF: return {regs.A, regs.F};
+            default: return 16'h0000;
+        endcase
+    endfunction
+
     
     typedef enum logic [1:0] {
         CC_NZ = 2'd0,

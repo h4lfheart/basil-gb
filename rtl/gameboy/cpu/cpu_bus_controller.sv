@@ -1,3 +1,5 @@
+import cpu_types::*;
+
 module cpu_bus_controller(
     input logic clk,
     input tcycle_t tcycle,

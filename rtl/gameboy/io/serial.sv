@@ -5,7 +5,9 @@ module serial(
     input logic rst,
     bus.child_port bus
 );
+`ifdef VERILATOR
     import "DPI-C" function void serial_putchar(byte unsigned c);
+`endif
 
     logic [7:0] SB;
     logic [7:0] SC;
@@ -25,7 +27,9 @@ module serial(
             case (bus.addr)
                 REG_SB: begin
                     SB <= bus.data_wr;
+`ifdef VERILATOR
                     serial_putchar(bus.data_wr);
+`endif
                 end
                 REG_SC: SC <= bus.data_wr;
             endcase

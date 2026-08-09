@@ -96,7 +96,6 @@ module hdma(
                     REG_HDMA2: source[7:0] <= {reg_bus.data_wr[7:4], 4'b0000};
                     REG_HDMA3: dest <= mask_dest({reg_bus.data_wr, dest[7:0]});
                     REG_HDMA4: dest <= mask_dest({dest[15:8], reg_bus.data_wr});
-                    default: ;
                 endcase
             end
 

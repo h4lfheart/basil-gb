@@ -158,6 +158,9 @@ module ppu(
     logic [7:0] WLY;
     logic win_y_condition;
     logic win_line_tick;
+    logic [7:0] LX;
+    logic px_valid;
+    logic [14:0] px_color;
 
     logic line_start;
     assign line_start = (mode == PPU_MODE_OAM) && (dot == OAM_SCAN_END - 1);
@@ -270,10 +273,6 @@ module ppu(
         .fifo_count(obj_fifo_count),
         .fifo_pop_en(obj_fifo_pop_en)
     );
-
-    logic [7:0] LX;
-    logic px_valid;
-    logic [14:0] px_color;
 
     ppu_shifter shifter(
         .clk(clk),

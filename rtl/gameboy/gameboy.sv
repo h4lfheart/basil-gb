@@ -6,9 +6,43 @@ module gameboy(
 );
     logic hdma_cpu_stall;
     logic cpu_stalled;
+    
+    logic vblank_interrupt;
+    logic stat_interrupt;
+    logic timer_interrupt;
+
+    logic boot_disable;
+
+    logic cgb_mode;
+    logic cpu_oam_blocked;
+    logic cpu_vram_bank;
+    logic hblank_pulse;
+    logic lcd_on;
+
+    logic dma_active;
+    logic [15:0] dma_src_addr;
+
+    logic hdma_active;
+    logic [15:0] hdma_src_addr;
 
     bus cpu_bus();
     bus cpu_reg_bus();
+    bus boot_rom_bus();
+    bus hram_bus();
+    bus vram_bus();
+    bus wram_bus();
+    bus oam_bus();
+    bus ppu_bus();
+    bus serial_bus();
+    bus joypad_bus();
+    bus timer_bus();
+    bus dma_reg_bus();
+    bus dma_mem_bus();
+    bus hdma_reg_bus();
+    bus hdma_mem_bus();
+    vram_ppu_bus ppu_vram_bus();
+    oam_ppu_bus ppu_oam_bus();
+
     cpu cpu(
         .clk(clk),
         .rst(rst),
@@ -25,23 +59,18 @@ module gameboy(
         })
     );
 
-    bus boot_rom_bus();
     mem_boot_rom boot_rom(
         .clk(clk),
         .rst(rst),
         .bus(boot_rom_bus)
     );
 
-    bus hram_bus();
     mem_hram hram(
         .clk(clk),
         .rst(rst),
         .bus(hram_bus)
     );
 
-    logic cpu_vram_bank;
-    bus vram_bus();
-    vram_ppu_bus ppu_vram_bus();
     mem_vram vram(
         .clk(clk),
         .rst(rst),
@@ -50,15 +79,12 @@ module gameboy(
         .ppu_bus(ppu_vram_bus)
     );
 
-    bus wram_bus();
     mem_wram wram(
         .clk(clk),
         .rst(rst),
         .bus(wram_bus)
     );
 
-    bus oam_bus();
-    oam_ppu_bus ppu_oam_bus();
     mem_oam oam(
         .clk(clk),
         .rst(rst),
@@ -66,14 +92,6 @@ module gameboy(
         .ppu_bus(ppu_oam_bus)
     );
 
-    logic vblank_interrupt;
-    logic stat_interrupt;
-    logic cgb_mode;
-    logic boot_disable;
-    logic cpu_oam_blocked;
-    logic hblank_pulse;
-    logic lcd_on;
-    bus ppu_bus();
     ppu ppu(
         .clk(clk),
         .rst(rst),
@@ -90,14 +108,12 @@ module gameboy(
         .lcd_on(lcd_on)
     );
 
-    bus serial_bus();
     serial serial(
         .clk(clk),
         .rst(rst),
         .bus(serial_bus)
     );
 
-    bus joypad_bus();
     joypad joypad(
         .clk(clk),
         .rst(rst),
@@ -105,8 +121,6 @@ module gameboy(
         .buttons(buttons)
     );
 
-    logic timer_interrupt;
-    bus timer_bus();
     timer timer(
         .clk(clk),
         .rst(rst),
@@ -114,10 +128,6 @@ module gameboy(
         .interrupt(timer_interrupt)
     );
 
-    logic dma_active;
-    logic [15:0] dma_src_addr;
-    bus dma_reg_bus();
-    bus dma_mem_bus();
     oam_dma oam_dma(
         .clk(clk),
         .rst(rst),
@@ -127,10 +137,6 @@ module gameboy(
         .src_addr(dma_src_addr)
     );
 
-    logic hdma_active;
-    logic [15:0] hdma_src_addr;
-    bus hdma_reg_bus();
-    bus hdma_mem_bus();
     hdma hdma(
         .clk(clk),
         .rst(rst),

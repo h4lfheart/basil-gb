@@ -1,9 +1,28 @@
+import cpu_types::*;
+
 function automatic logic half_carry_add8(logic [7:0] a, logic [7:0] b, logic cin);
     return ((5'(a[3:0]) + 5'(b[3:0]) + 5'(cin)) > 5'hF);
 endfunction
 
 function automatic logic half_carry_sub8(logic [7:0] a, logic [7:0] b, logic cin);
     return (5'(b[3:0]) + 5'(cin) > 5'(a[3:0]));
+endfunction
+
+function automatic logic [8:0] daa8(logic [7:0] a, flags_t flags_in);
+    logic [7:0] adj;
+    logic c_out;
+    adj = 0;
+    c_out = 0;
+
+    if (!flags_in.n) begin
+        if (flags_in.h || a[3:0] > 4'h9) adj = adj + 8'h06;
+        if (flags_in.c || a > 8'h99) begin adj = adj + 8'h60; c_out = 1; end
+    end else begin
+        if (flags_in.h) adj = adj - 8'h06;
+        if (flags_in.c) begin adj = adj - 8'h60; c_out = 1; end
+    end
+
+    return {c_out, a + adj};
 endfunction
 
 module cpu_alu(
@@ -144,24 +163,10 @@ module cpu_alu(
             end
 
             ALU_ACTION_DAA: begin
-                logic [7:0] adj;
-                logic c_out;
-                adj = 0;
-                c_out = 0;
-
-                if (!flags_in.n) begin
-                    if (flags_in.h || a[3:0] > 4'h9) adj = adj + 8'h06;
-                    if (flags_in.c || a > 8'h99) begin adj = adj + 8'h60; c_out = 1; end
-                end else begin
-                    if (flags_in.h) adj = adj - 8'h06;
-                    if (flags_in.c) begin adj = adj - 8'h60; c_out = 1; end
-                end
-
-                result = a + adj;
+                {flags.c, result} = daa8(a, flags_in);
                 flags.z = (result == 0);
                 flags.n = flags_in.n;
                 flags.h = 0;
-                flags.c = c_out;
             end
 
             ALU_ACTION_RLC: begin

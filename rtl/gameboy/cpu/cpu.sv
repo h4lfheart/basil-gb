@@ -1,4 +1,5 @@
 import cpu_types::*;
+import mem_types::*;
 
 `define always_mcycle always_ff @(posedge clk) if (tcycle == T3)
 
@@ -45,11 +46,13 @@ module cpu(
     logic [7:0] bus_data_wr;
     logic [7:0] bus_data_rd;
 
+    regs_t regs;
+
     logic wr_r8;
-    logic [7:0] wr_reg_r8;
+    r8_t wr_reg_r8;
     logic [7:0] wr_data_r8;
     logic wr_r16;
-    logic [15:0] wr_reg_r16;
+    r16_t wr_reg_r16;
     logic [15:0] wr_data_r16;
     logic wr_flags;
     flags_t wr_data_flags;
@@ -163,7 +166,6 @@ module cpu(
         unique case (ctrl.ime_action)
             IME_ACTION_DI, IME_ACTION_ISR: ime_next = 1'b0;
             IME_ACTION_RETI: ime_next = 1'b1;
-            default: ;
         endcase
     end
 
@@ -203,10 +205,11 @@ module cpu(
 
     function automatic logic cc_sel(cc_t cc);
         case (cc)
-            CC_NZ: return ~regfile.F.z;
-            CC_Z: return regfile.F.z;
-            CC_NC: return ~regfile.F.c;
-            CC_C: return regfile.F.c;
+            CC_NZ: return ~regs.F.z;
+            CC_Z: return regs.F.z;
+            CC_NC: return ~regs.F.c;
+            CC_C: return regs.F.c;
+            default: return 1'b0;
         endcase
     endfunction
 
@@ -228,31 +231,36 @@ module cpu(
         case (src)
             BUS_RD_SRC_PC: return PC;
             BUS_RD_SRC_WZ: return WZ;
-            BUS_RD_SRC_R16: return regfile.read_r16(ctrl.bus_rd_src_r16);
-            BUS_RD_SRC_Z: return {'hFF, Z};
-            BUS_RD_SRC_C: return {'hFF, regfile.read_r8(R8_C)};
+            BUS_RD_SRC_R16: return regs_read_r16(regs, ctrl.bus_rd_src_r16);
+            BUS_RD_SRC_Z: return {8'hFF, Z};
+            BUS_RD_SRC_C: return {8'hFF, regs_read_r8(regs, R8_C)};
             BUS_RD_SRC_ISR: return isr_vector(isr_priority_mask(Z, W));
+            default: return 16'h0000;
         endcase
     endfunction
 
     function automatic logic [7:0] bus_wr_data_sel(bus_wr_src_t src);
+        logic [15:0] r16_value;
+        r16_value = regs_read_r16(regs, ctrl.bus_wr_src_r16);
         case (src)
             BUS_WR_SRC_Z: return Z;
-            BUS_WR_SRC_R8: return regfile.read_r8(ctrl.bus_wr_src_r8);
+            BUS_WR_SRC_R8: return regs_read_r8(regs, ctrl.bus_wr_src_r8);
             BUS_WR_SRC_PCH: return PC[15:8];
             BUS_WR_SRC_PCL: return PC[7:0];
-            BUS_WR_SRC_R16H: return regfile.read_r16(ctrl.bus_wr_src_r16)[15:8];
-            BUS_WR_SRC_R16L: return regfile.read_r16(ctrl.bus_wr_src_r16)[7:0];
+            BUS_WR_SRC_R16H: return r16_value[15:8];
+            BUS_WR_SRC_R16L: return r16_value[7:0];
             BUS_WR_SRC_ALU: return alu_result;
+            default: return 8'h00;
         endcase
     endfunction
 
     function automatic logic [15:0] bus_wr_addr_sel(bus_wr_dst_t dst);
         case (dst)
-            BUS_WR_DST_R16: return regfile.read_r16(ctrl.bus_wr_dst_r16);
-            BUS_WR_DST_C: return {'hFF, regfile.read_r8(R8_C)};
-            BUS_WR_DST_Z: return {'hFF, Z};
+            BUS_WR_DST_R16: return regs_read_r16(regs, ctrl.bus_wr_dst_r16);
+            BUS_WR_DST_C: return {8'hFF, regs_read_r8(regs, R8_C)};
+            BUS_WR_DST_Z: return {8'hFF, Z};
             BUS_WR_DST_WZ: return WZ;
+            default: return 16'h0000;
         endcase
     endfunction
 
@@ -283,26 +291,31 @@ module cpu(
             3'd5: return 'h0028;
             3'd6: return 'h0030;
             3'd7: return 'h0038;
+            default: return 16'h0000;
         endcase
     endfunction
 
     function automatic logic [15:0] wb_sel(wb_src_t src);
         case (src)
             WB_SRC_WZ: return WZ;
-            WB_SRC_ALU: return alu_result;
+            WB_SRC_ALU: return {8'h00, alu_result};
             WB_SRC_IDU: return idu_out;
             WB_SRC_RST: return rst_vector(ctrl.rst);
-            WB_SRC_ISR: return isr_vector(isr_priority_mask(Z, W)) + 1;
+            WB_SRC_ISR: return isr_vector(isr_priority_mask(Z, W)) + 16'd1;
+            default: return 16'h0000;
         endcase
     endfunction
 
+    logic [15:0] wb_value;
+    assign wb_value = wb_sel(ctrl.wb_src);
+
     always_comb begin
         wr_r8 = 0;
-        wr_reg_r8 = 0;
+        wr_reg_r8 = R8_B;
         wr_data_r8 = 0;
 
         wr_r16 = 0;
-        wr_reg_r16 = 0;
+        wr_reg_r16 = R16_BC;
         wr_data_r16 = 0;
 
         wr_flags = 0;
@@ -312,12 +325,12 @@ module cpu(
             WB_DST_R8: begin
                 wr_r8 = 1;
                 wr_reg_r8 = ctrl.wb_r8;
-                wr_data_r8 = wb_sel(ctrl.wb_src);
+                wr_data_r8 = wb_value[7:0];
             end
             WB_DST_R16: begin
                 wr_r16 = 1;
                 wr_reg_r16 = ctrl.wb_r16;
-                wr_data_r16 = wb_sel(ctrl.wb_src);
+                wr_data_r16 = wb_value;
             end
         endcase
 
@@ -348,7 +361,7 @@ module cpu(
             Z_SIGN <= Z[7];
 
         case (ctrl.wb_dst)
-            WB_DST_PC: PC <= wb_sel(ctrl.wb_src);
+            WB_DST_PC: PC <= wb_value;
         endcase
 
         case (ctrl.alu_dst)
@@ -362,7 +375,7 @@ module cpu(
                 W <= idu_out[15:8];
                 Z <= idu_out[7:0];
             end
-            IDU_DST_W: W <= idu_out;
+            IDU_DST_W: W <= idu_out[7:0];
         endcase
     end
 
@@ -380,18 +393,23 @@ module cpu(
         .wr_data_r16(wr_data_r16),
 
         .wr_flags(wr_flags),
-        .wr_data_flags(wr_data_flags)
+        .wr_data_flags(wr_data_flags),
+
+        .regs(regs)
     );
 
     // ALU
     function automatic logic [7:0] alu_src_sel(alu_src_t src, r8_t r8, r16_t r16);
+        logic [15:0] r16_value;
+        r16_value = regs_read_r16(regs, r16);
         case (src)
-            ALU_SRC_R8: return regfile.read_r8(r8);
+            ALU_SRC_R8: return regs_read_r8(regs, r8);
             ALU_SRC_Z: return Z;
             ALU_SRC_PCL: return PC[7:0];
-            ALU_SRC_R16H: return regfile.read_r16(r16)[15:8];
-            ALU_SRC_R16L: return regfile.read_r16(r16)[7:0];
-            ALU_SRC_Z_SIGN_EXT: return Z_SIGN ? 'hFF : 'h00;
+            ALU_SRC_R16H: return r16_value[15:8];
+            ALU_SRC_R16L: return r16_value[7:0];
+            ALU_SRC_Z_SIGN_EXT: return Z_SIGN ? 8'hFF : 8'h00;
+            default: return 8'h00;
         endcase
     endfunction
 
@@ -403,7 +421,7 @@ module cpu(
         .a(alu_a),
         .b(alu_b),
         .bit_idx(ctrl.alu_bit),
-        .flags_in(regfile.F),
+        .flags_in(regs.F),
         .z_mod(ctrl.alu_z_mod),
         .result(alu_result),
         .flags(alu_flags)
@@ -411,26 +429,27 @@ module cpu(
 
     // Increment-Decrement Unit
     function automatic logic signed [1:0] idu_adj_sel(idu_adj_t adj);
+        logic carry_out;
+        carry_out = (9'(Z) + 9'(PC[7:0])) > 9'hFF;
         case (adj)
-            IDU_ADJ_NONE: return 'sh0;
-            IDU_ADJ_INC: return 'sh1;
-            IDU_ADJ_DEC: return -'sh1;
-            IDU_ADJ_CARRY: begin
-                logic carry_out;
-                carry_out = (9'(Z) + 9'(PC[7:0])) > 9'hFF;
+            IDU_ADJ_NONE: return 2'sd0;
+            IDU_ADJ_INC: return 2'sd1;
+            IDU_ADJ_DEC: return -2'sd1;
+            IDU_ADJ_CARRY:
                 return (carry_out == Z[7])
                     ? 2'sd0
                     : carry_out ? 2'sd1 : -2'sd1;
-            end
+            default: return 2'sd0;
         endcase
     endfunction
 
     function automatic logic [15:0] idu_src_sel(idu_src_t src);
         case (src)
             IDU_SRC_PC: return PC;
-            IDU_SRC_R16: return regfile.read_r16(ctrl.idu_src_r16);
+            IDU_SRC_R16: return regs_read_r16(regs, ctrl.idu_src_r16);
             IDU_SRC_WZ: return WZ;
-            IDU_SRC_PCH: return PC[15:8];
+            IDU_SRC_PCH: return {8'h00, PC[15:8]};
+            default: return 16'h0000;
         endcase
     endfunction
 
