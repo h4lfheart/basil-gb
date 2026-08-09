@@ -4,6 +4,7 @@ module ppu(
     input logic clk,
     input logic rst,
     input logic cgb_mode /* verilator public */,
+    input logic boot_disable,
     bus.child_port bus,
     vram_ppu_bus.parent_port vram_bus,
     oam_ppu_bus.parent_port oam_bus,
@@ -35,6 +36,27 @@ module ppu(
     logic [14:0] obj_palette [8][4] /* verilator public */;
 
     assign cpu_vram_bank = VBK;
+
+    localparam logic [14:0] CGB_UNMAPPED_PALETTE [4] = '{
+        15'h7FFF,
+        15'h1BEF,
+        15'h6180,
+        15'h0000
+    };
+
+    localparam logic [14:0] OVERRIDE_PALETTE [4] = '{
+        15'h7FFF,
+        15'h5294,
+        15'h294A,
+        15'h0000
+    };
+
+    logic bg_palette_is_unmapped;
+    assign bg_palette_is_unmapped =
+        (bg_palette[0][0] == CGB_UNMAPPED_PALETTE[0]) &&
+        (bg_palette[0][1] == CGB_UNMAPPED_PALETTE[1]) &&
+        (bg_palette[0][2] == CGB_UNMAPPED_PALETTE[2]) &&
+        (bg_palette[0][3] == CGB_UNMAPPED_PALETTE[3]);
 
     logic [2:0] bcps_pal;
     logic [1:0] bcps_color;
@@ -88,6 +110,12 @@ module ppu(
             VBK <= 'b0;
             BCPS <= 'h00;
             OCPS <= 'h00;
+        end else if (boot_disable && !cgb_mode && bg_palette_is_unmapped) begin
+            for (int c = 0; c < 4; c++) begin
+                bg_palette[0][c] <= OVERRIDE_PALETTE[c];
+                obj_palette[0][c] <= OVERRIDE_PALETTE[c];
+                obj_palette[1][c] <= OVERRIDE_PALETTE[c];
+            end
         end else if (bus.cs && bus.wr) begin
             case (bus.addr)
                 REG_LCDC: LCDC <= bus.data_wr;

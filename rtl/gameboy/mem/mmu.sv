@@ -57,7 +57,8 @@ module mmu (
     bus.parent_port serial_bus,
     bus.parent_port timer_bus,
     bus.parent_port joypad_bus,
-    output logic cgb_mode
+    output logic cgb_mode,
+    output logic boot_disable
 );
     typedef struct packed {
         logic boot_rom;
@@ -169,11 +170,18 @@ module mmu (
         if (rst) begin
             BANK <= 'h00;
             KEY0 <= 'h00;
-        end else if (cpu_bus.wr && cpu_ok) begin
-            if (cpu_cs.bank)
-                BANK <= cpu_bus.data_wr;
-            else if (cpu_cs.key0)
-                KEY0 <= cpu_bus.data_wr;
+            boot_disable <= 0;
+        end else begin
+            boot_disable <= 0;
+            if (cpu_bus.wr && cpu_ok) begin
+                if (cpu_cs.bank) begin
+                    BANK <= cpu_bus.data_wr;
+                    if (BANK == 'h00)
+                        boot_disable <= 1;
+                end
+                else if (cpu_cs.key0)
+                    KEY0 <= cpu_bus.data_wr;
+            end
         end
     end
 

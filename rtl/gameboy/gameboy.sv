@@ -69,6 +69,7 @@ module gameboy(
     logic vblank_interrupt;
     logic stat_interrupt;
     logic cgb_mode;
+    logic boot_disable;
     logic cpu_oam_blocked;
     logic hblank_pulse;
     logic lcd_on;
@@ -77,6 +78,7 @@ module gameboy(
         .clk(clk),
         .rst(rst),
         .cgb_mode(cgb_mode),
+        .boot_disable(boot_disable),
         .bus(ppu_bus),
         .vblank_interrupt(vblank_interrupt),
         .stat_interrupt(stat_interrupt),
@@ -166,7 +168,8 @@ module gameboy(
         .serial_bus(serial_bus),
         .timer_bus(timer_bus),
         .joypad_bus(joypad_bus),
-        .cgb_mode(cgb_mode)
+        .cgb_mode(cgb_mode),
+        .boot_disable(boot_disable)
     );
 
 endmodule
