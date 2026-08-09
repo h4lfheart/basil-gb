@@ -345,6 +345,17 @@ module cpu_control(
                     ctrl_fetch();
                 end
 
+                `OP_STOP: begin
+                    case (mcycle)
+                        M0: begin
+                            ctrl_pc_read(BUS_RD_DST_Z);
+                        end
+                        M1: begin
+                            ctrl_fetch();
+                        end
+                    endcase
+                end
+
                 `OP_CALL_NN: begin
                     case (mcycle)
                         M0: begin

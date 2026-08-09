@@ -1,6 +1,7 @@
 package cpu_types;
 
     `define OP_NOP 'b00000000
+    `define OP_STOP 'b00010000
 
     `define OP_CALL_NN 'b11001101
     `define OP_CALL_CC_NN 'b110??100
