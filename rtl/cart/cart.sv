@@ -25,6 +25,11 @@ module cart(
     logic mbc1_rom_cs;
     logic mbc1_ram_cs;
 
+    logic [ROM_ADDR_WIDTH-1:0] mbc3_rom_addr;
+    logic [RAM_ADDR_WIDTH-1:0] mbc3_ram_addr;
+    logic mbc3_rom_cs;
+    logic mbc3_ram_cs;
+
     assign cart_type = rom[ROM_ADDR_WIDTH'(HEADER_CART_TYPE)];
 
     mbc0 mbc0(
@@ -49,6 +54,19 @@ module cart(
         .ram_cs(mbc1_ram_cs)
     );
 
+    mbc3 mbc3(
+        .clk(clk),
+        .rst(rst),
+        .addr(bus.addr),
+        .data_wr(bus.data_wr),
+        .wr(bus.wr),
+        .cs(bus.cs),
+        .rom_addr(mbc3_rom_addr),
+        .rom_cs(mbc3_rom_cs),
+        .ram_addr(mbc3_ram_addr),
+        .ram_cs(mbc3_ram_cs)
+    );
+
     always_comb begin
         case (cart_type)
             CART_TYPE_MBC1,
@@ -58,6 +76,16 @@ module cart(
                 rom_cs = mbc1_rom_cs;
                 ram_addr = mbc1_ram_addr;
                 ram_cs = mbc1_ram_cs;
+            end
+            CART_TYPE_MBC3_TIMER_BATTERY,
+            CART_TYPE_MBC3_TIMER_RAM_BATTERY,
+            CART_TYPE_MBC3,
+            CART_TYPE_MBC3_RAM,
+            CART_TYPE_MBC3_RAM_BATTERY: begin
+                rom_addr = mbc3_rom_addr;
+                rom_cs = mbc3_rom_cs;
+                ram_addr = mbc3_ram_addr;
+                ram_cs = mbc3_ram_cs;
             end
             default: begin
                 rom_addr = mbc0_rom_addr;

@@ -58,6 +58,7 @@ verilate(basil_gb
         ../rtl/cart/cart_types.sv
         ../rtl/cart/mbc0.sv
         ../rtl/cart/mbc1.sv
+        ../rtl/cart/mbc3.sv
         ../rtl/cart/cart.sv
 
         ../rtl/gameboy/cpu/cpu_types.sv
