@@ -10,13 +10,19 @@ import ppu_types::*;
         child.cs = (sel); \
     end
 
-`define MMU_CONNECT_ARB(child, cpu_sel, dma_sel, dma_can_wr) \
+`define MMU_CONNECT_ARB(child, cpu_sel, oam_dma_sel, hdma_sel, oam_dma_can_wr, hdma_can_wr) \
     always_comb begin \
-        if (dma_active && dma_bus.cs && (dma_sel)) begin \
+        if (hdma_active && hdma_bus.cs && (hdma_sel)) begin \
+            child.addr = hdma_bus.addr; \
+            child.data_wr = hdma_bus.data_wr; \
+            child.rd = hdma_bus.rd; \
+            child.wr = (hdma_can_wr) && hdma_bus.wr; \
+            child.cs = 1; \
+        end else if (dma_active && dma_bus.cs && (oam_dma_sel)) begin \
             child.addr = dma_bus.addr; \
             child.data_wr = dma_bus.data_wr; \
             child.rd = dma_bus.rd; \
-            child.wr = (dma_can_wr) && dma_bus.wr; \
+            child.wr = (oam_dma_can_wr) && dma_bus.wr; \
             child.cs = 1; \
         end else begin \
             child.addr = cpu_bus.addr; \
@@ -32,10 +38,14 @@ module mmu (
     input logic rst,
     input logic dma_active,
     input logic [15:0] dma_src_addr,
+    input logic hdma_active,
+    input logic [15:0] hdma_src_addr,
     input logic cpu_oam_blocked,
     bus.child_port cpu_bus,
     bus.child_port dma_bus,
+    bus.child_port hdma_bus,
     bus.parent_port dma_reg_bus,
+    bus.parent_port hdma_reg_bus,
     bus.parent_port boot_rom_bus,
     bus.parent_port cart_bus,
     bus.parent_port vram_bus,
@@ -60,6 +70,7 @@ module mmu (
         logic key0;
         logic bank;
         logic dma;
+        logic hdma;
         logic cpu_reg;
         logic serial;
         logic timer;
@@ -70,6 +81,7 @@ module mmu (
         cs_t cs;
         cs = '0;
         cs.dma = addr == REG_DMA;
+        cs.hdma = addr inside {[REG_HDMA1:REG_HDMA5]};
         cs.boot_rom = (bank == 'h00) && addr inside {[BOOT_ROM_START:BOOT_ROM_END], [BOOT_ROM_EXT_START:BOOT_ROM_EXT_END]};
         cs.cart = !cs.boot_rom && addr inside {[CART_ROM_START:CART_ROM_END], [CART_RAM_START:CART_RAM_END]};
         cs.vram = addr inside {[VRAM_START:VRAM_END]};
@@ -104,9 +116,12 @@ module mmu (
     key0_t KEY0 = 'h00;
     cs_t cpu_cs;
     cs_t dma_cs;
+    cs_t hdma_cs;
     ext_bus_t dma_src_bus;
+    ext_bus_t hdma_src_bus;
     ext_bus_t cpu_access_bus;
     logic dma_src_bus_conflict;
+    logic hdma_src_bus_conflict;
     logic dma_blocks_oam;
     logic ppu_blocks_oam;
     logic cpu_ok;
@@ -115,20 +130,28 @@ module mmu (
 
     assign cpu_cs = decode(cpu_bus.addr, BANK);
     assign dma_cs = decode(dma_bus.addr, BANK);
+    assign hdma_cs = decode(hdma_bus.addr, BANK);
 
     assign dma_src_bus = ext_bus(dma_src_addr);
+    assign hdma_src_bus = ext_bus(hdma_src_addr);
     assign cpu_access_bus = ext_bus(cpu_bus.addr);
 
     assign dma_src_bus_conflict = dma_active
         && (dma_src_bus != BUS_CPU)
         && (dma_src_bus == cpu_access_bus);
 
+    assign hdma_src_bus_conflict = hdma_active
+        && hdma_bus.cs
+        && (hdma_src_bus != BUS_CPU)
+        && (hdma_src_bus == cpu_access_bus);
+
     assign dma_blocks_oam = dma_active && cpu_cs.oam;
     assign ppu_blocks_oam = cpu_oam_blocked && cpu_cs.oam;
 
-    assign cpu_ok = !(dma_blocks_oam || ppu_blocks_oam || dma_src_bus_conflict);
+    assign cpu_ok = !(dma_blocks_oam || ppu_blocks_oam || dma_src_bus_conflict || hdma_src_bus_conflict);
 
     `MMU_CONNECT_CPU(dma_reg_bus, cpu_cs.dma)
+    `MMU_CONNECT_CPU(hdma_reg_bus, cpu_cs.hdma)
     `MMU_CONNECT_CPU(hram_bus, cpu_cs.hram)
     `MMU_CONNECT_CPU(cpu_reg_bus, cpu_cs.cpu_reg)
     `MMU_CONNECT_CPU(ppu_bus, cpu_ok && cpu_cs.ppu)
@@ -136,11 +159,11 @@ module mmu (
     `MMU_CONNECT_CPU(timer_bus, cpu_ok && cpu_cs.timer)
     `MMU_CONNECT_CPU(joypad_bus, cpu_ok && cpu_cs.joypad)
 
-    `MMU_CONNECT_ARB(boot_rom_bus, cpu_cs.boot_rom, dma_cs.boot_rom, 0)
-    `MMU_CONNECT_ARB(cart_bus, cpu_cs.cart, dma_cs.cart, 0)
-    `MMU_CONNECT_ARB(vram_bus, cpu_cs.vram, dma_cs.vram, 0)
-    `MMU_CONNECT_ARB(wram_bus, cpu_cs.wram, dma_cs.wram, 0)
-    `MMU_CONNECT_ARB(oam_bus, cpu_cs.oam, dma_cs.oam, 1)
+    `MMU_CONNECT_ARB(boot_rom_bus, cpu_cs.boot_rom, dma_cs.boot_rom, hdma_cs.boot_rom, 0, 0)
+    `MMU_CONNECT_ARB(cart_bus, cpu_cs.cart, dma_cs.cart, hdma_cs.cart, 0, 0)
+    `MMU_CONNECT_ARB(vram_bus, cpu_cs.vram, dma_cs.vram, hdma_cs.vram, 0, 1)
+    `MMU_CONNECT_ARB(wram_bus, cpu_cs.wram, dma_cs.wram, hdma_cs.wram, 0, 0)
+    `MMU_CONNECT_ARB(oam_bus, cpu_cs.oam, dma_cs.oam, 1'b0, 1, 0)
 
     always_ff @(posedge clk) begin
         if (rst) begin
@@ -166,9 +189,19 @@ module mmu (
     end
 
     always_comb begin
+        hdma_bus.data_rd = 'hFF;
+        if (hdma_bus.rd) begin
+            if (hdma_cs.boot_rom) hdma_bus.data_rd = boot_rom_bus.data_rd;
+            else if (hdma_cs.cart) hdma_bus.data_rd = cart_bus.data_rd;
+            else if (hdma_cs.wram) hdma_bus.data_rd = wram_bus.data_rd;
+        end
+    end
+
+    always_comb begin
         cpu_bus.data_rd = 'hFF;
         if (cpu_bus.rd) begin
             if (cpu_cs.dma) cpu_bus.data_rd = dma_reg_bus.data_rd;
+            else if (cpu_cs.hdma) cpu_bus.data_rd = hdma_reg_bus.data_rd;
             else if (cpu_cs.hram) cpu_bus.data_rd = hram_bus.data_rd;
             else if (cpu_cs.cpu_reg) cpu_bus.data_rd = cpu_reg_bus.data_rd;
             else if (cpu_ok) begin

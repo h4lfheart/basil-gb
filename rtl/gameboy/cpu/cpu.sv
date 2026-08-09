@@ -5,6 +5,8 @@ import cpu_types::*;
 module cpu(
     input logic clk,
     input logic rst,
+    input logic stall,
+    output logic stall_ack,
     bus.parent_port bus,
     bus.child_port reg_bus,
     input interrupts_t interrupts
@@ -80,6 +82,9 @@ module cpu(
         endcase
     endfunction
 
+    logic stalled;
+    assign stall_ack = stalled;
+
     // Clock
     cpu_clock clock(
         .clk(clk),
@@ -87,6 +92,8 @@ module cpu(
         .rst_mcycle(ctrl.last_mcycle),
         .halt_hold(halted && !halt_resuming),
         .halt_align(halt_fetch_request),
+        .stall_req(stall),
+        .stalled(stalled),
         .tcycle(tcycle),
         .mcycle(mcycle)
     );
@@ -257,8 +264,8 @@ module cpu(
     cpu_bus_controller bus_controller(
         .clk(clk),
         .tcycle(tcycle),
-        .rd(ctrl.bus_rd),
-        .wr(ctrl.bus_wr),
+        .rd(ctrl.bus_rd && !stalled),
+        .wr(ctrl.bus_wr && !stalled),
         .addr(bus_addr),
         .data_wr(bus_data_wr),
         .data_rd(bus_data_rd),

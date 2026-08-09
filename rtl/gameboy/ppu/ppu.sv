@@ -9,6 +9,8 @@ module ppu(
     oam_ppu_bus.parent_port oam_bus,
     output logic cpu_vram_bank,
     output logic cpu_oam_blocked,
+    output logic hblank_pulse,
+    output logic lcd_on,
     output logic vblank_interrupt,
     output logic stat_interrupt
 );
@@ -288,6 +290,17 @@ module ppu(
     assign is_draw = (mode == PPU_MODE_DRAW);
 
     assign cpu_oam_blocked = LCDC.EN && (is_oam || is_draw);
+    assign lcd_on = LCDC.EN;
+
+    logic hblank_active;
+    assign hblank_active = LCDC.EN && is_hblank && (LY < VBLANK_START);
+
+    edge_detect hblank_edge(
+        .clk(clk),
+        .rst(rst),
+        .signal(hblank_active),
+        .rising(hblank_pulse)
+    );
 
     logic vblank_rising;
     edge_detect vblank_edge(

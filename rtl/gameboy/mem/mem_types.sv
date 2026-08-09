@@ -52,6 +52,13 @@ package mem_types;
 
     localparam logic [15:0] REG_KEY0 = 'hFF4C;
     localparam logic [15:0] REG_BANK = 'hFF50;
+
+    localparam logic [15:0] REG_HDMA1 = 'hFF51;
+    localparam logic [15:0] REG_HDMA2 = 'hFF52;
+    localparam logic [15:0] REG_HDMA3 = 'hFF53;
+    localparam logic [15:0] REG_HDMA4 = 'hFF54;
+    localparam logic [15:0] REG_HDMA5 = 'hFF55;
+
     localparam logic [15:0] REG_SVBK = 'hFF70;
 
     localparam logic [15:0] REG_IE = 'hFFFF;

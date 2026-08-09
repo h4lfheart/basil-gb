@@ -91,6 +91,7 @@ verilate(basil_gb
         ../rtl/gameboy/mem/mem_wram.sv
         ../rtl/gameboy/mem/mem_oam.sv
         ../rtl/gameboy/mem/oam_dma.sv
+        ../rtl/gameboy/mem/hdma.sv
         ../rtl/gameboy/mem/mmu.sv
 
         ../rtl/gameboy/gameboy.sv
