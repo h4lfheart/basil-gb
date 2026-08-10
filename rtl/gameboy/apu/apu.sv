@@ -18,7 +18,6 @@ module apu(
     output mix_sample_t sample_right
 );
     logic enabled;
-
     nr50_t NR50;
     nr51_t NR51;
 
@@ -34,6 +33,8 @@ module apu(
 
     logic signed [6:0] mix_left;
     logic signed [6:0] mix_right;
+    mix_sample_t mix_pre_left;
+    mix_sample_t mix_pre_right;
 
     logic ch1_sel;
     logic ch2_sel;
@@ -41,9 +42,14 @@ module apu(
     logic ch4_sel;
 
     logic power_off;
+    logic power_on;
 
     logic div_apu_falling;
     logic [2:0] frame_step;
+    logic length_tick;
+    logic sweep_tick;
+    logic env_tick;
+    logic length_extra_window;
 
     bus ch1_bus();
     bus ch2_bus();
@@ -55,8 +61,10 @@ module apu(
     assign ch3_sel = is_ch3_reg(reg_bus.addr);
     assign ch4_sel = is_ch4_reg(reg_bus.addr);
 
-    assign power_off = reg_bus.cs && reg_bus.wr && (reg_bus.addr == REG_NR52)
+    assign power_off = reg_bus.cs && reg_bus.wr && reg_bus.addr == REG_NR52
         && !reg_bus.data_wr[7] && enabled;
+    assign power_on = reg_bus.cs && reg_bus.wr && reg_bus.addr == REG_NR52
+        && reg_bus.data_wr[7] && !enabled;
 
     edge_detect div_apu_edge(
         .clk(clk),
@@ -67,19 +75,16 @@ module apu(
     );
 
     always_ff @(posedge clk) begin
-        if (rst)
-            frame_step <= 0;
+        if (rst || power_on)
+            frame_step <= '0;
         else if (div_apu_falling)
-            frame_step <= frame_step + 1'b1;
+            frame_step <= frame_step + 'd1;
     end
 
-    
-    logic length_tick;
-    logic sweep_tick;
-    logic env_tick;
     assign length_tick = div_apu_falling && !frame_step[0];
-    assign sweep_tick = div_apu_falling && (frame_step[1:0] == 2'b10);
-    assign env_tick = div_apu_falling && (frame_step == 3'd7);
+    assign sweep_tick = div_apu_falling && frame_step[1:0] == 'b10;
+    assign env_tick = div_apu_falling && frame_step == 'd7;
+    assign length_extra_window = frame_step[0];
 
     `APU_CONNECT_CH(ch1_bus, ch1_sel)
     `APU_CONNECT_CH(ch2_bus, ch2_sel)
@@ -91,6 +96,10 @@ module apu(
         .rst(rst),
         .enabled(enabled),
         .clear(power_off),
+        .length_tick(length_tick),
+        .sweep_tick(sweep_tick),
+        .env_tick(env_tick),
+        .length_extra_window(length_extra_window),
         .bus(ch1_bus),
         .active(ch1_active),
         .sample(ch1_sample)
@@ -101,6 +110,9 @@ module apu(
         .rst(rst),
         .enabled(enabled),
         .clear(power_off),
+        .length_tick(length_tick),
+        .env_tick(env_tick),
+        .length_extra_window(length_extra_window),
         .bus(ch2_bus),
         .active(ch2_active),
         .sample(ch2_sample)
@@ -111,6 +123,8 @@ module apu(
         .rst(rst),
         .enabled(enabled),
         .clear(power_off),
+        .length_tick(length_tick),
+        .length_extra_window(length_extra_window),
         .bus(ch3_bus),
         .active(ch3_active),
         .sample(ch3_sample)
@@ -121,6 +135,9 @@ module apu(
         .rst(rst),
         .enabled(enabled),
         .clear(power_off),
+        .length_tick(length_tick),
+        .env_tick(env_tick),
+        .length_extra_window(length_extra_window),
         .bus(ch4_bus),
         .active(ch4_active),
         .sample(ch4_sample)
@@ -130,19 +147,35 @@ module apu(
         mix_left = '0;
         mix_right = '0;
 
-        if (NR51.ch1_left) mix_left += ch1_sample;
-        if (NR51.ch2_left) mix_left += ch2_sample;
-        if (NR51.ch3_left) mix_left += ch3_sample;
-        if (NR51.ch4_left) mix_left += ch4_sample;
+        if (NR51.ch1_left) mix_left += 7'(ch1_sample);
+        if (NR51.ch2_left) mix_left += 7'(ch2_sample);
+        if (NR51.ch3_left) mix_left += 7'(ch3_sample);
+        if (NR51.ch4_left) mix_left += 7'(ch4_sample);
 
-        if (NR51.ch1_right) mix_right += ch1_sample;
-        if (NR51.ch2_right) mix_right += ch2_sample;
-        if (NR51.ch3_right) mix_right += ch3_sample;
-        if (NR51.ch4_right) mix_right += ch4_sample;
+        if (NR51.ch1_right) mix_right += 7'(ch1_sample);
+        if (NR51.ch2_right) mix_right += 7'(ch2_sample);
+        if (NR51.ch3_right) mix_right += 7'(ch3_sample);
+        if (NR51.ch4_right) mix_right += 7'(ch4_sample);
 
-        sample_left = enabled ? mix_left * $signed({1'b0, NR50.left_volume}) : '0;
-        sample_right = enabled ? mix_right * $signed({1'b0, NR50.right_volume}) : '0;
+        mix_pre_left = enabled ? mix_left * $signed({2'b0, NR50.left_volume} + 5'd1) : '0;
+        mix_pre_right = enabled ? mix_right * $signed({2'b0, NR50.right_volume} + 5'd1) : '0;
     end
+
+    apu_highpass #(.WIDTH($bits(mix_sample_t))) hpf_left(
+        .clk(clk),
+        .rst(rst),
+        .enable(enabled),
+        .in(mix_pre_left),
+        .out(sample_left)
+    );
+
+    apu_highpass #(.WIDTH($bits(mix_sample_t))) hpf_right(
+        .clk(clk),
+        .rst(rst),
+        .enable(enabled),
+        .in(mix_pre_right),
+        .out(sample_right)
+    );
 
     always_comb begin
         reg_bus.data_rd = 'hFF;

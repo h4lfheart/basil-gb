@@ -1,6 +1,5 @@
 package apu_types;
     typedef logic signed [4:0] channel_sample_t;
-
     typedef logic signed [9:0] mix_sample_t;
 
     typedef struct packed {
@@ -34,9 +33,9 @@ package apu_types;
     } nr30_t;
 
     typedef struct packed {
-        logic [1:0] unused_high;
+        logic unused_high;
         logic [1:0] volume;
-        logic [3:0] unused_low;
+        logic [4:0] unused_low;
     } nr32_t;
 
     typedef struct packed {
@@ -95,9 +94,6 @@ package apu_types;
     localparam logic [15:0] WAVE_RAM_START = 'hFF30;
     localparam logic [15:0] WAVE_RAM_END = 'hFF3F;
 
-    localparam logic [5:0] LENGTH_6BIT_MAX = 'd63;
-    localparam logic [7:0] LENGTH_8BIT_MAX = 'd255;
-
     function automatic logic is_apu_reg(input logic [15:0] addr);
         return addr inside {[APU_IO_START:APU_IO_END]};
     endfunction
@@ -116,5 +112,36 @@ package apu_types;
 
     function automatic logic is_ch4_reg(input logic [15:0] addr);
         return addr inside {[REG_NR41:REG_NR44]};
+    endfunction
+
+    function automatic logic dac_enabled_nrx2(input nrx2_t nrx2);
+        return |{nrx2.volume, nrx2.envelope_dir};
+    endfunction
+
+    function automatic logic [13:0] pulse_period_reload(input logic [10:0] period);
+        return (14'd2048 - {3'b0, period}) << 2;
+    endfunction
+
+    function automatic logic [12:0] wave_period_reload(input logic [10:0] period);
+        return (13'd2048 - {2'b0, period}) << 1;
+    endfunction
+
+    function automatic logic [21:0] noise_period_reload(
+        input logic [2:0] divider,
+        input logic [3:0] shift
+    );
+        logic [21:0] divisor;
+        divisor = divider == 0 ? 22'd8 : {15'd0, divider, 4'b0000};
+        return divisor << shift;
+    endfunction
+
+    function automatic channel_sample_t digital_sample(
+        input logic active,
+        input logic digital,
+        input logic [3:0] volume
+    );
+        if (!active)
+            return '0;
+        return digital ? $signed({1'b0, volume}) : -$signed({1'b0, volume});
     endfunction
 endpackage

@@ -15,6 +15,7 @@
         <File path="src/mem/rom_loader.sv" type="file.verilog" enable="1"/>
         <File path="src/mem/sdram_bridge.sv" type="file.verilog" enable="1"/>
         <File path="src/video/gb_scaler.sv" type="file.verilog" enable="1"/>
+        <File path="src/audio_cdc.sv" type="file.verilog" enable="1"/>
         <File path="external/hdmi/src/tmds_channel.sv" type="file.verilog" enable="1"/>
         <File path="external/hdmi/src/packet_assembler.sv" type="file.verilog" enable="1"/>
         <File path="external/hdmi/src/audio_clock_regeneration_packet.sv" type="file.verilog" enable="1"/>
@@ -41,6 +42,7 @@
         <File path="../rtl/cart/mbc0.sv" type="file.verilog" enable="1"/>
         <File path="../rtl/cart/mbc1.sv" type="file.verilog" enable="1"/>
         <File path="../rtl/cart/mbc3.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/cart/mbc5.sv" type="file.verilog" enable="1"/>
         <File path="../rtl/cart/cart.sv" type="file.verilog" enable="1"/>
         <File path="../rtl/gameboy/cpu/cpu_bus_controller.sv" type="file.verilog" enable="1"/>
         <File path="../rtl/gameboy/cpu/cpu_regfile.sv" type="file.verilog" enable="1"/>
@@ -51,6 +53,13 @@
         <File path="../rtl/gameboy/cpu/cpu.sv" type="file.verilog" enable="1"/>
         <File path="../rtl/gameboy/io/serial.sv" type="file.verilog" enable="1"/>
         <File path="../rtl/gameboy/timer/timer.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/gameboy/apu/components/apu_length.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/gameboy/apu/components/apu_envelope.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/gameboy/apu/components/apu_freq_timer.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/gameboy/apu/components/apu_duty.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/gameboy/apu/components/apu_sweep.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/gameboy/apu/components/apu_lfsr.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/gameboy/apu/components/apu_highpass.sv" type="file.verilog" enable="1"/>
         <File path="../rtl/gameboy/apu/apu_ch1.sv" type="file.verilog" enable="1"/>
         <File path="../rtl/gameboy/apu/apu_ch2.sv" type="file.verilog" enable="1"/>
         <File path="../rtl/gameboy/apu/apu_ch3.sv" type="file.verilog" enable="1"/>

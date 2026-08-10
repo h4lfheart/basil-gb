@@ -1,3 +1,5 @@
+import apu_types::*;
+
 module top (
     input I_clk,
     input I_rst,
@@ -145,6 +147,25 @@ module top (
         end
     end
 
+    localparam logic [24:0] AUDIO_STEP = 'd96_000;
+    localparam logic [24:0] AUDIO_RATE = 'd27_000_000;
+    logic [24:0] audio_accumulator;
+    logic audio_clk_r /* synthesis syn_keep=1 */;
+    wire [25:0] audio_sum = {1'b0, audio_accumulator} + AUDIO_STEP;
+    wire audio_clk = audio_clk_r;
+
+    always_ff @(posedge I_clk or negedge board_rst_n) begin
+        if (!board_rst_n) begin
+            audio_accumulator <= '0;
+            audio_clk_r <= 1'b0;
+        end else if (audio_sum >= AUDIO_RATE) begin
+            audio_accumulator <= audio_sum - AUDIO_RATE;
+            audio_clk_r <= ~audio_clk_r;
+        end else begin
+            audio_accumulator <= audio_sum[24:0];
+        end
+    end
+
     logic [5:0] gb_reset_count;
     logic gb_reset;
     always_ff @(posedge gb_clk or negedge board_rst_n) begin
@@ -175,23 +196,44 @@ module top (
         .sdram(run_sdram)
     );
 
+    mix_sample_t apu_left;
+    mix_sample_t apu_right;
+
     console u_console (
         .clk(gb_clk),
         .rst(gb_reset),
         .buttons(buttons),
-        .audio_sample_left(),
-        .audio_sample_right(),
+        .audio_sample_left(apu_left),
+        .audio_sample_right(apu_right),
         .fb_rd(fb_rd),
         .header_cart_type(header_cart_type),
         .cart_mem(cart_mem),
         .wram_mem(wram_mem)
     );
 
+    logic signed [15:0] audio_left;
+    logic signed [15:0] audio_right;
+
+    audio_cdc u_audio_cdc (
+        .audio_clk(audio_clk),
+        .audio_rst(I_rst),
+        .src_clk(gb_clk),
+        .src_rst(gb_reset),
+        .src_left(apu_left),
+        .src_right(apu_right),
+        .sample_left(audio_left),
+        .sample_right(audio_right)
+    );
+
     logic [9:0] hdmi_cx;
     logic [9:0] hdmi_cy;
     logic [23:0] pixel_rgb;
+    logic [15:0] hdmi_audio [1:0];
     logic [2:0] tmds_serial;
     logic tmds_clock;
+
+    assign hdmi_audio[0] = audio_left;
+    assign hdmi_audio[1] = audio_right;
 
     gb_scaler u_scaler (
         .clk(pixel_clk),
@@ -204,18 +246,20 @@ module top (
 
     hdmi #(
         .VIDEO_ID_CODE(1),
-        .DVI_OUTPUT(1'b1),
+        .DVI_OUTPUT(1'b0),
         .VIDEO_REFRESH_RATE(60.0),
+        .AUDIO_RATE(48_000),
+        .AUDIO_BIT_WIDTH(16),
         .VENDOR_NAME({"basil-gb"}),
         .PRODUCT_DESCRIPTION({"Tang Nano 20K", 24'd0}),
         .SOURCE_DEVICE_INFORMATION(8'h08)
     ) u_hdmi (
         .clk_pixel_x5(serial_clk),
         .clk_pixel(pixel_clk),
-        .clk_audio(1'b0),
+        .clk_audio(audio_clk),
         .reset(hdmi_reset),
         .rgb(pixel_rgb),
-        .audio_sample_word('{16'sd0, 16'sd0}),
+        .audio_sample_word(hdmi_audio),
         .tmds(tmds_serial),
         .tmds_clock(tmds_clock),
         .cx(hdmi_cx),

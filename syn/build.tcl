@@ -13,6 +13,7 @@ add_file src/mem/spi_flash_read.sv
 add_file src/mem/rom_loader.sv
 add_file src/mem/sdram_bridge.sv
 add_file src/video/gb_scaler.sv
+add_file src/audio_cdc.sv
 
 add_file external/hdmi/src/tmds_channel.sv
 add_file external/hdmi/src/packet_assembler.sv
@@ -41,6 +42,7 @@ add_file ../rtl/gameboy/io/joypad.sv
 add_file ../rtl/cart/mbc0.sv
 add_file ../rtl/cart/mbc1.sv
 add_file ../rtl/cart/mbc3.sv
+add_file ../rtl/cart/mbc5.sv
 add_file ../rtl/cart/cart.sv
 add_file ../rtl/gameboy/cpu/cpu_bus_controller.sv
 add_file ../rtl/gameboy/cpu/cpu_regfile.sv
@@ -51,6 +53,13 @@ add_file ../rtl/gameboy/cpu/cpu_clock.sv
 add_file ../rtl/gameboy/cpu/cpu.sv
 add_file ../rtl/gameboy/io/serial.sv
 add_file ../rtl/gameboy/timer/timer.sv
+add_file ../rtl/gameboy/apu/components/apu_length.sv
+add_file ../rtl/gameboy/apu/components/apu_envelope.sv
+add_file ../rtl/gameboy/apu/components/apu_freq_timer.sv
+add_file ../rtl/gameboy/apu/components/apu_duty.sv
+add_file ../rtl/gameboy/apu/components/apu_sweep.sv
+add_file ../rtl/gameboy/apu/components/apu_lfsr.sv
+add_file ../rtl/gameboy/apu/components/apu_highpass.sv
 add_file ../rtl/gameboy/apu/apu_ch1.sv
 add_file ../rtl/gameboy/apu/apu_ch2.sv
 add_file ../rtl/gameboy/apu/apu_ch3.sv

@@ -63,6 +63,7 @@ verilate(basil_gb
         ../rtl/cart/mbc0.sv
         ../rtl/cart/mbc1.sv
         ../rtl/cart/mbc3.sv
+        ../rtl/cart/mbc5.sv
         ../rtl/cart/cart.sv
 
         ../rtl/gameboy/cpu/cpu_types.sv
@@ -80,6 +81,13 @@ verilate(basil_gb
         ../rtl/gameboy/timer/timer.sv
 
         ../rtl/gameboy/apu/apu_types.sv
+        ../rtl/gameboy/apu/components/apu_length.sv
+        ../rtl/gameboy/apu/components/apu_envelope.sv
+        ../rtl/gameboy/apu/components/apu_freq_timer.sv
+        ../rtl/gameboy/apu/components/apu_duty.sv
+        ../rtl/gameboy/apu/components/apu_sweep.sv
+        ../rtl/gameboy/apu/components/apu_lfsr.sv
+        ../rtl/gameboy/apu/components/apu_highpass.sv
         ../rtl/gameboy/apu/apu_ch1.sv
         ../rtl/gameboy/apu/apu_ch2.sv
         ../rtl/gameboy/apu/apu_ch3.sv
