@@ -9,10 +9,13 @@ module timer(
     input logic clk,
     input logic rst,
     bus.child_port bus,
-    output logic interrupt
+    output logic interrupt,
+    output logic [15:0] div
 );
 
     logic [15:0] DIV;
+
+    assign div = DIV;
     logic [7:0] TIMA;
     logic [7:0] TMA;
     tac_t TAC;

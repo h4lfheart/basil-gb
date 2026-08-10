@@ -75,6 +75,13 @@ verilate(basil_gb
 
         ../rtl/gameboy/timer/timer.sv
 
+        ../rtl/gameboy/apu/apu_types.sv
+        ../rtl/gameboy/apu/apu_ch1.sv
+        ../rtl/gameboy/apu/apu_ch2.sv
+        ../rtl/gameboy/apu/apu_ch3.sv
+        ../rtl/gameboy/apu/apu_ch4.sv
+        ../rtl/gameboy/apu/apu.sv
+
         ../rtl/gameboy/ppu/ppu_types.sv
         ../rtl/gameboy/ppu/ppu_fifo.sv
         ../rtl/gameboy/ppu/ppu_bg_win_fetcher.sv

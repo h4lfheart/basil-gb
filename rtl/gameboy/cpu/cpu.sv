@@ -166,6 +166,7 @@ module cpu(
         unique case (ctrl.ime_action)
             IME_ACTION_DI, IME_ACTION_ISR: ime_next = 1'b0;
             IME_ACTION_RETI: ime_next = 1'b1;
+            default: ;
         endcase
     end
 

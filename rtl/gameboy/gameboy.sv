@@ -1,8 +1,12 @@
+import apu_types::*;
+
 module gameboy(
     input logic clk,
     input logic rst,
     input joypad_buttons_t buttons,
-    bus.parent_port cart_bus
+    bus.parent_port cart_bus,
+    output mix_sample_t audio_sample_left,
+    output mix_sample_t audio_sample_right
 );
     logic hdma_cpu_stall;
     logic cpu_stalled;
@@ -18,6 +22,8 @@ module gameboy(
     logic cpu_vram_bank;
     logic hblank_pulse;
     logic lcd_on;
+
+    logic [15:0] div;
 
     logic dma_active;
     logic [15:0] dma_src_addr;
@@ -36,6 +42,7 @@ module gameboy(
     bus serial_bus();
     bus joypad_bus();
     bus timer_bus();
+    bus apu_bus();
     bus dma_reg_bus();
     bus dma_mem_bus();
     bus hdma_reg_bus();
@@ -125,7 +132,17 @@ module gameboy(
         .clk(clk),
         .rst(rst),
         .bus(timer_bus),
-        .interrupt(timer_interrupt)
+        .interrupt(timer_interrupt),
+        .div(div)
+    );
+
+    apu apu(
+        .clk(clk),
+        .rst(rst),
+        .reg_bus(apu_bus),
+        .div(div),
+        .sample_left(audio_sample_left),
+        .sample_right(audio_sample_right)
     );
 
     oam_dma oam_dma(
@@ -174,6 +191,7 @@ module gameboy(
         .serial_bus(serial_bus),
         .timer_bus(timer_bus),
         .joypad_bus(joypad_bus),
+        .apu_bus(apu_bus),
         .cgb_mode(cgb_mode),
         .boot_disable(boot_disable)
     );

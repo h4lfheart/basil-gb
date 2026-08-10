@@ -1,5 +1,6 @@
 import mem_types::*;
 import ppu_types::*;
+import apu_types::*;
 
 `define MMU_CONNECT_CPU(child, sel) \
     always_comb begin \
@@ -57,6 +58,7 @@ module mmu (
     bus.parent_port serial_bus,
     bus.parent_port timer_bus,
     bus.parent_port joypad_bus,
+    bus.parent_port apu_bus,
     output logic cgb_mode,
     output logic boot_disable
 );
@@ -68,6 +70,7 @@ module mmu (
         logic oam;
         logic hram;
         logic ppu;
+        logic apu;
         logic key0;
         logic bank;
         logic dma;
@@ -90,6 +93,7 @@ module mmu (
         cs.oam = addr inside {[OAM_START:OAM_END]};
         cs.hram = addr inside {[HRAM_START:HRAM_END]};
         cs.ppu = is_ppu_reg(addr) && !cs.dma;
+        cs.apu = is_apu_reg(addr);
         cs.key0 = addr == REG_KEY0;
         cs.bank = addr == REG_BANK;
         cs.cpu_reg = addr inside {REG_IF, REG_IE};
@@ -156,6 +160,7 @@ module mmu (
     `MMU_CONNECT_CPU(hram_bus, cpu_cs.hram)
     `MMU_CONNECT_CPU(cpu_reg_bus, cpu_cs.cpu_reg)
     `MMU_CONNECT_CPU(ppu_bus, cpu_ok && cpu_cs.ppu)
+    `MMU_CONNECT_CPU(apu_bus, cpu_ok && cpu_cs.apu)
     `MMU_CONNECT_CPU(serial_bus, cpu_ok && cpu_cs.serial)
     `MMU_CONNECT_CPU(timer_bus, cpu_ok && cpu_cs.timer)
     `MMU_CONNECT_CPU(joypad_bus, cpu_ok && cpu_cs.joypad)
@@ -219,6 +224,7 @@ module mmu (
                 else if (cpu_cs.wram) cpu_bus.data_rd = wram_bus.data_rd;
                 else if (cpu_cs.oam) cpu_bus.data_rd = oam_bus.data_rd;
                 else if (cpu_cs.ppu) cpu_bus.data_rd = ppu_bus.data_rd;
+                else if (cpu_cs.apu) cpu_bus.data_rd = apu_bus.data_rd;
                 else if (cpu_cs.key0) cpu_bus.data_rd = KEY0;
                 else if (cpu_cs.serial) cpu_bus.data_rd = serial_bus.data_rd;
                 else if (cpu_cs.timer) cpu_bus.data_rd = timer_bus.data_rd;
