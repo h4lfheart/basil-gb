@@ -1,8 +1,4 @@
 .vscode
 
-*.vcd
-*.surf
-
 build/
 roms/
-trace/

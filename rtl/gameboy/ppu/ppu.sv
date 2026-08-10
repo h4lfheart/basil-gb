@@ -14,9 +14,14 @@ module ppu(
     output logic lcd_on,
     output logic vblank_interrupt,
     output logic stat_interrupt
+`ifndef VERILATOR
+    ,
+    fb_rd_bus.ppu fb_rd
+`endif
 );
 
-    logic [14:0] framebuffer [144][160] /* verilator public */;
+logic [15:0] framebuffer [0:23039] /* verilator public */
+    /* synthesis syn_ramstyle = "block_ram" */;
 
     lcdc_t LCDC /* verilator public */;
     stat_int_t STAT_INT;
@@ -307,8 +312,16 @@ module ppu(
 
     always_ff @(posedge clk) begin
         if (px_valid)
-            framebuffer[LY][LX] <= px_color;
+            framebuffer[(LY * 15'd160) + {7'b0, LX}] <= {1'b0, px_color};
     end
+
+`ifndef VERILATOR
+    logic [15:0] fb_q;
+    always_ff @(posedge fb_rd.clk)
+        fb_q <= framebuffer[fb_rd.addr];
+
+    assign fb_rd.data = fb_q[14:0];
+`endif
 
     logic is_hblank, is_vblank, is_oam, is_draw;
     assign is_hblank = (mode == PPU_MODE_HBLANK);

@@ -7,18 +7,18 @@ find_package(SDL2 REQUIRED)
 find_package(OpenGL REQUIRED)
 
 if(WIN32)
-    set(APP_RC app.rc)
+    set(APP_RC src/app.rc)
 endif()
 
 add_executable(basil_gb
-    main.cpp
-    sim/sim.cpp
-    testing/runner.cpp
-    debug/debug_ui.cpp
+    src/main.cpp
+    src/sim/sim.cpp
+    src/testing/runner.cpp
+    src/debug/debug_ui.cpp
     ${APP_RC}
 )
 
-set(IMGUI_DIR ${CMAKE_SOURCE_DIR}/../external/imgui)
+set(IMGUI_DIR ${CMAKE_SOURCE_DIR}/external/imgui)
 
 target_sources(basil_gb PRIVATE
     ${IMGUI_DIR}/imgui.cpp
@@ -30,7 +30,8 @@ target_sources(basil_gb PRIVATE
 )
 
 target_include_directories(basil_gb PRIVATE
-    ${CMAKE_SOURCE_DIR}/../external/argparse/include
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/external/argparse/include
     ${IMGUI_DIR}
     ${IMGUI_DIR}/backends
     ${SDL2_INCLUDE_DIRS}
@@ -54,6 +55,9 @@ verilate(basil_gb
         ../rtl/bus.sv
         ../rtl/oam_ppu_bus.sv
         ../rtl/vram_ppu_bus.sv
+        ../rtl/cart_ext_mem.sv
+        ../rtl/wram_ext_mem.sv
+        ../rtl/fb_rd_bus.sv
 
         ../rtl/cart/cart_types.sv
         ../rtl/cart/mbc0.sv

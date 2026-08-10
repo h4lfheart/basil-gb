@@ -1,6 +1,9 @@
-[submodule "external/argparse"]
-	path = external/argparse
+[submodule "sim/external/argparse"]
+	path = sim/external/argparse
 	url = https://github.com/p-ranav/argparse
-[submodule "external/imgui"]
-	path = external/imgui
+[submodule "sim/external/imgui"]
+	path = sim/external/imgui
 	url = https://github.com/ocornut/imgui.git
+[submodule "syn/external/hdmi"]
+	path = syn/external/hdmi
+	url = https://github.com/hdl-util/hdmi

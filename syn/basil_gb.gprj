@@ -1,0 +1,80 @@
+<?xml version="1" encoding="UTF-8"?>
+<!DOCTYPE gowin-fpga-project>
+<Project>
+    <Template>FPGA</Template>
+    <Version>5</Version>
+    <Device name="GW2AR-18C" pn="GW2AR-LV18QN88C8/I7">gw2ar18c-000</Device>
+    <FileList>
+        <File path="src/gw_ide_define.sv" type="file.verilog" enable="1"/>
+        <File path="src/pll/TMDS_rPLL.v" type="file.verilog" enable="1"/>
+        <File path="src/pll/SDRAM_rPLL.v" type="file.verilog" enable="1"/>
+        <File path="src/mem/sdram_bus.sv" type="file.verilog" enable="1"/>
+        <File path="src/mem/spi_flash_bus.sv" type="file.verilog" enable="1"/>
+        <File path="src/mem/sdram.v" type="file.verilog" enable="1"/>
+        <File path="src/mem/spi_flash_read.sv" type="file.verilog" enable="1"/>
+        <File path="src/mem/rom_loader.sv" type="file.verilog" enable="1"/>
+        <File path="src/mem/sdram_bridge.sv" type="file.verilog" enable="1"/>
+        <File path="src/video/gb_scaler.sv" type="file.verilog" enable="1"/>
+        <File path="external/hdmi/src/tmds_channel.sv" type="file.verilog" enable="1"/>
+        <File path="external/hdmi/src/packet_assembler.sv" type="file.verilog" enable="1"/>
+        <File path="external/hdmi/src/audio_clock_regeneration_packet.sv" type="file.verilog" enable="1"/>
+        <File path="external/hdmi/src/audio_sample_packet.sv" type="file.verilog" enable="1"/>
+        <File path="external/hdmi/src/audio_info_frame.sv" type="file.verilog" enable="1"/>
+        <File path="external/hdmi/src/auxiliary_video_information_info_frame.sv" type="file.verilog" enable="1"/>
+        <File path="external/hdmi/src/source_product_description_info_frame.sv" type="file.verilog" enable="1"/>
+        <File path="external/hdmi/src/packet_picker.sv" type="file.verilog" enable="1"/>
+        <File path="external/hdmi/src/serializer.sv" type="file.verilog" enable="1"/>
+        <File path="external/hdmi/src/hdmi.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/util/edge_detect.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/bus.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/oam_ppu_bus.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/vram_ppu_bus.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/cart_ext_mem.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/wram_ext_mem.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/fb_rd_bus.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/cart/cart_types.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/gameboy/cpu/cpu_types.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/gameboy/ppu/ppu_types.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/gameboy/mem/mem_types.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/gameboy/apu/apu_types.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/gameboy/io/joypad.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/cart/mbc0.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/cart/mbc1.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/cart/mbc3.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/cart/cart.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/gameboy/cpu/cpu_bus_controller.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/gameboy/cpu/cpu_regfile.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/gameboy/cpu/cpu_alu.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/gameboy/cpu/cpu_idu.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/gameboy/cpu/cpu_control.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/gameboy/cpu/cpu_clock.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/gameboy/cpu/cpu.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/gameboy/io/serial.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/gameboy/timer/timer.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/gameboy/apu/apu_ch1.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/gameboy/apu/apu_ch2.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/gameboy/apu/apu_ch3.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/gameboy/apu/apu_ch4.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/gameboy/apu/apu.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/gameboy/ppu/ppu_fifo.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/gameboy/ppu/ppu_bg_win_fetcher.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/gameboy/ppu/ppu_oam_scan.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/gameboy/ppu/ppu_obj_fetcher.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/gameboy/ppu/ppu_shifter.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/gameboy/ppu/ppu_state.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/gameboy/ppu/ppu.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/gameboy/mem/mem_boot_rom.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/gameboy/mem/mem_hram.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/gameboy/mem/mem_vram.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/gameboy/mem/mem_wram.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/gameboy/mem/mem_oam.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/gameboy/mem/oam_dma.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/gameboy/mem/hdma.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/gameboy/mem/mmu.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/gameboy/gameboy.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/console.sv" type="file.verilog" enable="1"/>
+        <File path="src/top.sv" type="file.verilog" enable="1"/>
+        <File path="src/constr/tang_nano_20k.cst" type="file.cst" enable="1"/>
+        <File path="src/constr/tang_nano_20k.sdc" type="file.sdc" enable="1"/>
+    </FileList>
+</Project>

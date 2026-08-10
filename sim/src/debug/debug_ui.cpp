@@ -120,9 +120,8 @@ void DebugUI::update_textures(const Simulation& sim) {
     }
 
     uint16_t framebuffer[LCD_W * LCD_H];
-    for (int y = 0; y < LCD_H; y++)
-        for (int x = 0; x < LCD_W; x++)
-            framebuffer[y * LCD_W + x] = ppu->framebuffer[y][x];
+    for (int i = 0; i < LCD_W * LCD_H; i++)
+        framebuffer[i] = ppu->framebuffer[i] & 0x7FFF;
 
     uint32_t lcd_pixels[LCD_W * LCD_H];
     build_lcd(framebuffer, lcd_pixels);

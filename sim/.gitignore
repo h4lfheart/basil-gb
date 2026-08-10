@@ -1,0 +1,4 @@
+*.vcd
+*.surf
+trace/
+build/

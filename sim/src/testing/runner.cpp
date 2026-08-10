@@ -104,16 +104,6 @@ struct ActiveTest {
     std::chrono::steady_clock::time_point start;
 };
 
-// Blocks forever so a worker thread never returns.
-//
-// Every eval() calls Verilated::endOfEval(), which unconditionally creates a
-// thread_local VerilatedThreadMsgQueue. On mingw-w64 with the posix threading
-// model, libgcc's emutls_destroy() frees thread-local storage before the CRT's
-// run_dtor_list() invokes the C++ destructors, so destroying any thread_local
-// with a non-trivial destructor at thread exit reads freed memory and faults
-// (https://github.com/msys2/MINGW-packages/issues/2519). Simulation worker
-// threads therefore park here once their work is done and are reaped by process
-// exit, which skips the broken teardown entirely.
 [[noreturn]] static void park_until_process_exit() {
     while (true) std::this_thread::sleep_for(std::chrono::hours(24));
 }
@@ -135,11 +125,6 @@ static std::vector<std::string> build_running_lines(const std::vector<ActiveTest
     return lines;
 }
 
-// Redraws the live status block in place. Any `permanent` lines are printed
-// above the status block (they scroll into history); `status` lines occupy the
-// bottom of the screen. Overwriting each line then clearing its tail (rather
-// than erasing everything first) avoids the blank intermediate frame that
-// causes flicker. Returns the new number of status lines on screen.
 static size_t render_frame(size_t prev_status_lines,
                            const std::vector<std::string>& permanent,
                            const std::vector<std::string>& status) {

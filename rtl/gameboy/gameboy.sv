@@ -7,6 +7,11 @@ module gameboy(
     bus.parent_port cart_bus,
     output mix_sample_t audio_sample_left,
     output mix_sample_t audio_sample_right
+`ifndef VERILATOR
+    ,
+    fb_rd_bus.ppu fb_rd,
+    wram_ext_mem.core wram_mem
+`endif
 );
     logic hdma_cpu_stall;
     logic cpu_stalled;
@@ -90,6 +95,10 @@ module gameboy(
         .clk(clk),
         .rst(rst),
         .bus(wram_bus)
+`ifndef VERILATOR
+        ,
+        .mem(wram_mem)
+`endif
     );
 
     mem_oam oam(
@@ -113,6 +122,10 @@ module gameboy(
         .cpu_oam_blocked(cpu_oam_blocked),
         .hblank_pulse(hblank_pulse),
         .lcd_on(lcd_on)
+`ifndef VERILATOR
+        ,
+        .fb_rd(fb_rd)
+`endif
     );
 
     serial serial(
