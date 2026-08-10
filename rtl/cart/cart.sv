@@ -37,6 +37,11 @@ module cart(
     logic mbc3_rom_cs;
     logic mbc3_ram_cs;
 
+    logic [ROM_ADDR_WIDTH-1:0] mbc5_rom_addr;
+    logic [RAM_ADDR_WIDTH-1:0] mbc5_ram_addr;
+    logic mbc5_rom_cs;
+    logic mbc5_ram_cs;
+
 `ifdef VERILATOR
     assign cart_type = rom[ROM_ADDR_WIDTH'(HEADER_CART_TYPE)];
 `else
@@ -78,6 +83,19 @@ module cart(
         .ram_cs(mbc3_ram_cs)
     );
 
+    mbc5 mbc5(
+        .clk(clk),
+        .rst(rst),
+        .addr(bus.addr),
+        .data_wr(bus.data_wr),
+        .wr(bus.wr),
+        .cs(bus.cs),
+        .rom_addr(mbc5_rom_addr),
+        .rom_cs(mbc5_rom_cs),
+        .ram_addr(mbc5_ram_addr),
+        .ram_cs(mbc5_ram_cs)
+    );
+
     always_comb begin
         case (cart_type)
             CART_TYPE_MBC1,
@@ -98,6 +116,17 @@ module cart(
                 ram_addr = mbc3_ram_addr;
                 ram_cs = mbc3_ram_cs;
             end
+            CART_TYPE_MBC5,
+            CART_TYPE_MBC5_RAM,
+            CART_TYPE_MBC5_RAM_BATTERY,
+            CART_TYPE_MBC5_RUMBLE,
+            CART_TYPE_MBC5_RUMBLE_RAM,
+            CART_TYPE_MBC5_RUMBLE_RAM_BATTERY: begin
+                rom_addr = mbc5_rom_addr;
+                rom_cs = mbc5_rom_cs;
+                ram_addr = mbc5_ram_addr;
+                ram_cs = mbc5_ram_cs;
+            end
             default: begin
                 rom_addr = mbc0_rom_addr;
                 rom_cs = mbc0_rom_cs;
@@ -106,6 +135,7 @@ module cart(
             end
         endcase
     end
+
 
 `ifdef VERILATOR
     always_comb begin

@@ -15,4 +15,10 @@ package cart_types;
     localparam logic [7:0] CART_TYPE_MBC3 = 'h11;
     localparam logic [7:0] CART_TYPE_MBC3_RAM = 'h12;
     localparam logic [7:0] CART_TYPE_MBC3_RAM_BATTERY = 'h13;
+    localparam logic [7:0] CART_TYPE_MBC5 = 'h19;
+    localparam logic [7:0] CART_TYPE_MBC5_RAM = 'h1A;
+    localparam logic [7:0] CART_TYPE_MBC5_RAM_BATTERY = 'h1B;
+    localparam logic [7:0] CART_TYPE_MBC5_RUMBLE = 'h1C;
+    localparam logic [7:0] CART_TYPE_MBC5_RUMBLE_RAM = 'h1D;
+    localparam logic [7:0] CART_TYPE_MBC5_RUMBLE_RAM_BATTERY = 'h1E;
 endpackage
