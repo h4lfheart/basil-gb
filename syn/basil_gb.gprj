@@ -28,11 +28,9 @@
         <File path="external/hdmi/src/hdmi.sv" type="file.verilog" enable="1"/>
         <File path="../rtl/util/edge_detect.sv" type="file.verilog" enable="1"/>
         <File path="../rtl/bus.sv" type="file.verilog" enable="1"/>
-        <File path="../rtl/oam_ppu_bus.sv" type="file.verilog" enable="1"/>
-        <File path="../rtl/vram_ppu_bus.sv" type="file.verilog" enable="1"/>
-        <File path="../rtl/cart_ext_mem.sv" type="file.verilog" enable="1"/>
-        <File path="../rtl/wram_ext_mem.sv" type="file.verilog" enable="1"/>
-        <File path="../rtl/fb_rd_bus.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/ext/cart_ext_mem.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/ext/wram_ext_mem.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/ext/fb_rd_bus.sv" type="file.verilog" enable="1"/>
         <File path="../rtl/cart/cart_types.sv" type="file.verilog" enable="1"/>
         <File path="../rtl/gameboy/cpu/cpu_types.sv" type="file.verilog" enable="1"/>
         <File path="../rtl/gameboy/ppu/ppu_types.sv" type="file.verilog" enable="1"/>
@@ -65,6 +63,8 @@
         <File path="../rtl/gameboy/apu/apu_ch3.sv" type="file.verilog" enable="1"/>
         <File path="../rtl/gameboy/apu/apu_ch4.sv" type="file.verilog" enable="1"/>
         <File path="../rtl/gameboy/apu/apu.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/gameboy/ppu/oam_ppu_bus.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/gameboy/ppu/vram_ppu_bus.sv" type="file.verilog" enable="1"/>
         <File path="../rtl/gameboy/ppu/ppu_fifo.sv" type="file.verilog" enable="1"/>
         <File path="../rtl/gameboy/ppu/ppu_bg_win_fetcher.sv" type="file.verilog" enable="1"/>
         <File path="../rtl/gameboy/ppu/ppu_oam_scan.sv" type="file.verilog" enable="1"/>
@@ -77,8 +77,8 @@
         <File path="../rtl/gameboy/mem/mem_vram.sv" type="file.verilog" enable="1"/>
         <File path="../rtl/gameboy/mem/mem_wram.sv" type="file.verilog" enable="1"/>
         <File path="../rtl/gameboy/mem/mem_oam.sv" type="file.verilog" enable="1"/>
-        <File path="../rtl/gameboy/mem/oam_dma.sv" type="file.verilog" enable="1"/>
-        <File path="../rtl/gameboy/mem/hdma.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/gameboy/mem/dma/oam_dma.sv" type="file.verilog" enable="1"/>
+        <File path="../rtl/gameboy/mem/dma/vdma.sv" type="file.verilog" enable="1"/>
         <File path="../rtl/gameboy/mem/mmu.sv" type="file.verilog" enable="1"/>
         <File path="../rtl/gameboy/gameboy.sv" type="file.verilog" enable="1"/>
         <File path="../rtl/console.sv" type="file.verilog" enable="1"/>

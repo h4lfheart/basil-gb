@@ -53,11 +53,9 @@ verilate(basil_gb
         ../rtl/util/edge_detect.sv
 
         ../rtl/bus.sv
-        ../rtl/oam_ppu_bus.sv
-        ../rtl/vram_ppu_bus.sv
-        ../rtl/cart_ext_mem.sv
-        ../rtl/wram_ext_mem.sv
-        ../rtl/fb_rd_bus.sv
+        ../rtl/ext/cart_ext_mem.sv
+        ../rtl/ext/wram_ext_mem.sv
+        ../rtl/ext/fb_rd_bus.sv
 
         ../rtl/cart/cart_types.sv
         ../rtl/cart/mbc0.sv
@@ -94,6 +92,8 @@ verilate(basil_gb
         ../rtl/gameboy/apu/apu_ch4.sv
         ../rtl/gameboy/apu/apu.sv
 
+        ../rtl/gameboy/ppu/oam_ppu_bus.sv
+        ../rtl/gameboy/ppu/vram_ppu_bus.sv
         ../rtl/gameboy/ppu/ppu_types.sv
         ../rtl/gameboy/ppu/ppu_fifo.sv
         ../rtl/gameboy/ppu/ppu_bg_win_fetcher.sv
@@ -109,8 +109,8 @@ verilate(basil_gb
         ../rtl/gameboy/mem/mem_vram.sv
         ../rtl/gameboy/mem/mem_wram.sv
         ../rtl/gameboy/mem/mem_oam.sv
-        ../rtl/gameboy/mem/oam_dma.sv
-        ../rtl/gameboy/mem/hdma.sv
+        ../rtl/gameboy/mem/dma/oam_dma.sv
+        ../rtl/gameboy/mem/dma/vdma.sv
         ../rtl/gameboy/mem/mmu.sv
 
         ../rtl/gameboy/gameboy.sv

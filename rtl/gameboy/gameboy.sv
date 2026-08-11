@@ -167,7 +167,7 @@ module gameboy(
         .src_addr(dma_src_addr)
     );
 
-    hdma hdma(
+    vdma hdma(
         .clk(clk),
         .rst(rst),
         .hblank_pulse(hblank_pulse),

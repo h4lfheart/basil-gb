@@ -1,6 +1,6 @@
 import mem_types::*;
 
-module hdma(
+module vdma(
     input logic clk,
     input logic rst,
     input logic hblank_pulse,

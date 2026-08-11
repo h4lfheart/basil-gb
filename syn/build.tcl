@@ -28,11 +28,9 @@ add_file external/hdmi/src/hdmi.sv
 
 add_file ../rtl/util/edge_detect.sv
 add_file ../rtl/bus.sv
-add_file ../rtl/oam_ppu_bus.sv
-add_file ../rtl/vram_ppu_bus.sv
-add_file ../rtl/cart_ext_mem.sv
-add_file ../rtl/wram_ext_mem.sv
-add_file ../rtl/fb_rd_bus.sv
+add_file ../rtl/ext/cart_ext_mem.sv
+add_file ../rtl/ext/wram_ext_mem.sv
+add_file ../rtl/ext/fb_rd_bus.sv
 add_file ../rtl/cart/cart_types.sv
 add_file ../rtl/gameboy/cpu/cpu_types.sv
 add_file ../rtl/gameboy/ppu/ppu_types.sv
@@ -65,6 +63,8 @@ add_file ../rtl/gameboy/apu/apu_ch2.sv
 add_file ../rtl/gameboy/apu/apu_ch3.sv
 add_file ../rtl/gameboy/apu/apu_ch4.sv
 add_file ../rtl/gameboy/apu/apu.sv
+add_file ../rtl/gameboy/ppu/oam_ppu_bus.sv
+add_file ../rtl/gameboy/ppu/vram_ppu_bus.sv
 add_file ../rtl/gameboy/ppu/ppu_fifo.sv
 add_file ../rtl/gameboy/ppu/ppu_bg_win_fetcher.sv
 add_file ../rtl/gameboy/ppu/ppu_oam_scan.sv
@@ -77,8 +77,8 @@ add_file ../rtl/gameboy/mem/mem_hram.sv
 add_file ../rtl/gameboy/mem/mem_vram.sv
 add_file ../rtl/gameboy/mem/mem_wram.sv
 add_file ../rtl/gameboy/mem/mem_oam.sv
-add_file ../rtl/gameboy/mem/oam_dma.sv
-add_file ../rtl/gameboy/mem/hdma.sv
+add_file ../rtl/gameboy/mem/dma/oam_dma.sv
+add_file ../rtl/gameboy/mem/dma/vdma.sv
 add_file ../rtl/gameboy/mem/mmu.sv
 add_file ../rtl/gameboy/gameboy.sv
 add_file ../rtl/console.sv
