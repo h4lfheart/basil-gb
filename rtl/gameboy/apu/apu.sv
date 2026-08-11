@@ -157,8 +157,12 @@ module apu(
         if (NR51.ch3_right) mix_right += 7'(ch3_sample);
         if (NR51.ch4_right) mix_right += 7'(ch4_sample);
 
-        mix_pre_left = enabled ? mix_left * $signed({2'b0, NR50.left_volume} + 5'd1) : '0;
-        mix_pre_right = enabled ? mix_right * $signed({2'b0, NR50.right_volume} + 5'd1) : '0;
+        mix_pre_left = '0;
+        mix_pre_right = '0;
+        if (enabled) begin
+            mix_pre_left = mix_left * $signed({2'b0, NR50.left_volume} + 5'd1);
+            mix_pre_right = mix_right * $signed({2'b0, NR50.right_volume} + 5'd1);
+        end
     end
 
     apu_highpass #(.WIDTH($bits(mix_sample_t))) hpf_left(
