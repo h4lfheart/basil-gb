@@ -59,6 +59,7 @@ module ppu_shifter(
 
         if (en && !obj_fetch_active && !in_window && LCDC.WIN_EN && win_y_condition
                 && WX <= 'd166
+                && scx_discard_count == 0
                 && $signed({2'b0, LX}) >= wx_target) begin
             win_enter = 1;
             win_line_tick = 1;
@@ -115,6 +116,7 @@ module ppu_shifter(
         end else begin
             if (win_enter) begin
                 in_window <= 1;
+                scx_discard_count <= 0;
             end else if (bg_fifo_pop_en) begin
                 if (scx_discard_count > 0)
                     scx_discard_count <= scx_discard_count - 1;
