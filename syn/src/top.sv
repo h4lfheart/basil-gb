@@ -21,7 +21,11 @@ module top (
     output flash_cs_n,
     output flash_clk,
     output flash_mosi,
-    input flash_miso
+    input flash_miso,
+    output joypad_sclk,
+    output joypad_cs_n,
+    output joypad_mosi,
+    input joypad_miso
 );
     wire board_rst_n = ~I_rst;
 
@@ -30,27 +34,27 @@ module top (
     wire tmds_pll_lock;
     wire hdmi_reset = I_rst | ~tmds_pll_lock;
 
-    TMDS_rPLL u_tmds_pll (
+    TMDS_rPLL tmds_pll (
         .clkin(I_clk),
         .clkout(serial_clk),
         .lock(tmds_pll_lock)
     );
 
-    CLKDIV u_pixel_div (
+    CLKDIV pixel_clock_divider (
         .RESETN(board_rst_n & tmds_pll_lock),
         .HCLKIN(serial_clk),
         .CLKOUT(pixel_clk),
         .CALIB(1'b1)
     );
-    defparam u_pixel_div.DIV_MODE = "5";
-    defparam u_pixel_div.GSREN = "false";
+    defparam pixel_clock_divider.DIV_MODE = "5";
+    defparam pixel_clock_divider.GSREN = "false";
 
     wire sdram_clk;
     wire sdram_clk_phase;
     wire sdram_pll_lock;
     wire sdram_rst_n = board_rst_n & sdram_pll_lock;
 
-    SDRAM_rPLL u_sdram_pll (
+    SDRAM_rPLL sdram_pll (
         .clkin(I_clk),
         .clkout(sdram_clk),
         .clkoutp(sdram_clk_phase),
@@ -94,7 +98,7 @@ module top (
     assign flash_mosi = flash.mosi;
     assign flash.miso = flash_miso;
 
-    sdram #(.FREQ(54_000_000)) u_sdram (
+    sdram #(.FREQ(54_000_000)) sdram (
         .clk(sdram_clk),
         .clk_sdram(sdram_clk_phase),
         .resetn(sdram_rst_n),
@@ -119,7 +123,7 @@ module top (
         .SDRAM_DQM(O_sdram_dqm)
     );
 
-    rom_loader u_loader (
+    rom_loader rom_loader (
         .clk(sdram_clk),
         .rst_n(sdram_rst_n),
         .sdram(boot_sdram),
@@ -182,11 +186,33 @@ module top (
         end
     end
 
+    joypad_buttons_t buttons_spi;
+    joypad_buttons_t buttons_meta;
     joypad_buttons_t buttons;
-    assign buttons = '1;
+
+    spi_joypad_host spi_joypad_host (
+        .clk(I_clk),
+        .rst(I_rst),
+        .sclk(joypad_sclk),
+        .cs_n(joypad_cs_n),
+        .mosi(joypad_mosi),
+        .miso(joypad_miso),
+        .buttons(buttons_spi)
+    );
+
+    always_ff @(posedge gb_clk or negedge board_rst_n) begin
+        if (!board_rst_n) begin
+            buttons_meta <= '1;
+            buttons <= '1;
+        end else begin
+            buttons_meta <= buttons_spi;
+            buttons <= buttons_meta;
+        end
+    end
+
     assign fb_rd.clk = pixel_clk;
 
-    sdram_bridge u_sdram_bridge (
+    sdram_bridge sdram_bridge (
         .gb_clk(gb_clk),
         .enable(rom_ready),
         .cart_mem(cart_mem),
@@ -199,7 +225,7 @@ module top (
     mix_sample_t apu_left;
     mix_sample_t apu_right;
 
-    console u_console (
+    console console (
         .clk(gb_clk),
         .rst(gb_reset),
         .buttons(buttons),
@@ -214,7 +240,7 @@ module top (
     logic signed [15:0] audio_left;
     logic signed [15:0] audio_right;
 
-    audio_cdc u_audio_cdc (
+    audio_cdc audio_cdc (
         .audio_clk(audio_clk),
         .audio_rst(I_rst),
         .src_clk(gb_clk),
@@ -235,7 +261,7 @@ module top (
     assign hdmi_audio[0] = audio_left;
     assign hdmi_audio[1] = audio_right;
 
-    gb_scaler u_scaler (
+    gb_scaler gb_scaler (
         .clk(pixel_clk),
         .rst(hdmi_reset),
         .cx(hdmi_cx),
@@ -253,7 +279,7 @@ module top (
         .VENDOR_NAME({"basil-gb"}),
         .PRODUCT_DESCRIPTION({"Tang Nano 20K", 24'd0}),
         .SOURCE_DEVICE_INFORMATION(8'h08)
-    ) u_hdmi (
+    ) hdmi (
         .clk_pixel_x5(serial_clk),
         .clk_pixel(pixel_clk),
         .clk_audio(audio_clk),
@@ -270,19 +296,20 @@ module top (
         .screen_height()
     );
 
-    TLVDS_OBUF u_tmds_clk_buf (
+    TLVDS_OBUF tmds_clock_buffer (
         .I(tmds_clock),
         .O(O_tmds_clk_p),
         .OB(O_tmds_clk_n)
     );
 
-    genvar lane;
+    genvar tmds_data_lane;
     generate
-        for (lane = 0; lane < 3; lane = lane + 1) begin : g_tmds_buf
-            TLVDS_OBUF u_data_buf (
-                .I(tmds_serial[lane]),
-                .O(O_tmds_data_p[lane]),
-                .OB(O_tmds_data_n[lane])
+        for (tmds_data_lane = 0; tmds_data_lane < 3; tmds_data_lane = tmds_data_lane + 1)
+            begin : tmds_data_buffers
+            TLVDS_OBUF tmds_data_buffer (
+                .I(tmds_serial[tmds_data_lane]),
+                .O(O_tmds_data_p[tmds_data_lane]),
+                .OB(O_tmds_data_n[tmds_data_lane])
             );
         end
     endgenerate

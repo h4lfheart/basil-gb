@@ -30,7 +30,7 @@ module rom_loader #(
     logic spi_finished;
     logic [15:0] refresh_div;
 
-    spi_flash_read u_spi (
+    spi_flash_read spi_flash_read (
         .clk(clk),
         .rst_n(rst_n),
         .start(spi_start),

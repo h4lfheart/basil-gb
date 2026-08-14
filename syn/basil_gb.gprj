@@ -37,6 +37,7 @@
         <File path="../rtl/gameboy/mem/mem_types.sv" type="file.verilog" enable="1"/>
         <File path="../rtl/gameboy/apu/apu_types.sv" type="file.verilog" enable="1"/>
         <File path="../rtl/gameboy/io/joypad.sv" type="file.verilog" enable="1"/>
+        <File path="src/io/spi_joypad_host.sv" type="file.verilog" enable="1"/>
         <File path="../rtl/cart/mbc0.sv" type="file.verilog" enable="1"/>
         <File path="../rtl/cart/mbc1.sv" type="file.verilog" enable="1"/>
         <File path="../rtl/cart/mbc3.sv" type="file.verilog" enable="1"/>

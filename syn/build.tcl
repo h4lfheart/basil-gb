@@ -37,6 +37,7 @@ add_file ../rtl/gameboy/ppu/ppu_types.sv
 add_file ../rtl/gameboy/mem/mem_types.sv
 add_file ../rtl/gameboy/apu/apu_types.sv
 add_file ../rtl/gameboy/io/joypad.sv
+add_file src/io/spi_joypad_host.sv
 add_file ../rtl/cart/mbc0.sv
 add_file ../rtl/cart/mbc1.sv
 add_file ../rtl/cart/mbc3.sv
